@@ -79,8 +79,11 @@ class CloudyObject(converter.CloudyToSkirt):
         self._cloudy_default_Z   = 0.0134294404311891 #metals command scale this number (if abundances gass is used)
         self._cloudy_default_DTG = 6.622e-03 #taken from running a 'stop zone 1' cloudy run with grains ism command
         self._disable_qheat = True
+        self._enable_PAH = True
         #Cosmic rays
         self._use_cosmic_rays_background = True #If false and cloudy encounters molecular gas, it may crash
+        #CMB
+        self._use_CMB = True
         '''
         Known bug: If you give a table with too many significant digits to cloudy,
         it may crash due to overshoot in cloudy interpolation routine 
@@ -148,6 +151,13 @@ class CloudyObject(converter.CloudyToSkirt):
                     file.write("no qheat \n")
                 else:
                     file.write("\n")
+                #Add pah, if desired
+                if self._enable_PAH:
+                    file.write("grains pah ")
+                if self._disable_qheat:
+                    file.write("no qheat \n")
+                else:
+                    file.write("\n")
         #chemistry custom modes (you are giving at least Z)
         elif chemistry == 'metals':
             #first, use solar abundances (see table 7.4 of cloudy hazy 1)
@@ -174,22 +184,16 @@ class CloudyObject(converter.CloudyToSkirt):
                         file.write("no qheat \n")
                     else:
                         file.write("\n")
+                #Add pah, if enabled
+                if self._enable_PAH:
+                    file.write("grains pah ")
+                    if self._disable_qheat:
+                        file.write("no qheat \n")
+                    else:
+                        file.write("\n")
             #and we finish entering the metalicity
             scale_Z = self._param_Z[zone]/self._cloudy_default_Z
             file.write("metals "+str(scale_Z)+" \n")
-            
-            '''
-            #add metalicity
-            scale_Z = self._param_Z[zone]/self._cloudy_default_Z
-            file.write("metals "+str(scale_Z)+" \n")
-            #We now add grains
-            if dust == 'grains ism' or self._param_DTG[zone] < 0.0:
-                #For being easy to implement, I put this here
-                #The code should give you a warning for taking this route...
-                file.write("grains ism \n")
-            elif dust == 'dust to gas':
-                pass
-            '''
         
         
         if self._use_cosmic_rays_background:
@@ -213,6 +217,9 @@ class CloudyObject(converter.CloudyToSkirt):
                 outfile.write(line)
                 break
         sedfile.close()
+        
+        if self._use_CMB:
+            outfile.write("CMB \n")
     
     def __writeGeometry(self,file,zone):
         file.write("## GEOMETRY \n")
