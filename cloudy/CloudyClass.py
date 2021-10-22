@@ -41,6 +41,7 @@ class CloudyObject(converter.CloudyToSkirt):
         self._n_zones = None
         
         #Chemistry and dust
+        self._param_Y   = [] #He fraction
         self._param_Z   = [] #Metalicity
         self._param_DTG = [] #Dust-to-gas
         
@@ -73,12 +74,23 @@ class CloudyObject(converter.CloudyToSkirt):
         self.nm_to_Ryd = lambda x : 1.0/(x*1e-9*self.Rinf)
         
     def __initDetails(self):
-        #These options are used for debug purposes only
+        #This option is used for debug purposes only
         self._use_intensity_command_in_cloudy = False #This will use intensity X at range instead of nuf(nu) Y at Z
         #Default parameters
-        self._cloudy_default_Z   = 0.0134294404311891 #metals command scale this number (if abundances gass is used)
-        self._cloudy_default_DTG = 6.622e-03 #taken from running a 'stop zone 1' cloudy run with grains ism command
-        self._disable_qheat = True
+        '''
+        These parameters are taken with a cloudy run with these commands:
+            abundances gass
+            grains ism
+            table ism
+            stop zone 1
+        Other options shown in this method are taken as FALSE and thus not included
+        '''
+        self._cloudy_default_Y   = 0.25057390087996967 #He abundance by default
+        self._cloudy_default_Z   = 0.0134294404311891 #metals abundance by default
+        self._cloudy_default_DTG = 6.580e-03 #grains, but not pah, scales with this number.
+        
+        #Other chemistry options
+        self._disable_qheat = False
         self._enable_PAH = True
         #Cosmic rays
         self._use_cosmic_rays_background = True #If false and cloudy encounters molecular gas, it may crash
@@ -158,14 +170,21 @@ class CloudyObject(converter.CloudyToSkirt):
                     file.write("no qheat \n")
                 else:
                     file.write("\n")
-        #chemistry custom modes (you are giving at least Z)
+        #chemistry custom modes (you are giving at least Y and Z)
         elif chemistry == 'metals':
             #first, use solar abundances (see table 7.4 of cloudy hazy 1)
             #THIS ABUNDANCES DOES NOT ADD GRAINS (see table 7.2 of cloudy hazy 1)
             file.write("abundances gass \n")
+            #He content
+            scale_He = self._param_Y[zone] / self._cloudy_default_Y
+            file.write("element helium scale "+str(scale_He)+" \n")
+            #Metal content
+            scale_Z = self._param_Z[zone]/self._cloudy_default_Z
+            file.write("metals "+str(scale_Z)+" \n")
             
-            if dust != False: #dust == True does not exist
-                file.write("metals deplete \n")
+            if dust != False: #Dust is included in this model
+                #dust == True does not exist
+                #file.write("metals deplete \n")
                 
                 file.write("grains ism ") #It's the default, 'grains' does the same
                 
@@ -184,6 +203,7 @@ class CloudyObject(converter.CloudyToSkirt):
                         file.write("no qheat \n")
                     else:
                         file.write("\n")
+            
                 #Add pah, if enabled
                 if self._enable_PAH:
                     file.write("grains pah ")
@@ -191,9 +211,6 @@ class CloudyObject(converter.CloudyToSkirt):
                         file.write("no qheat \n")
                     else:
                         file.write("\n")
-            #and we finish entering the metalicity
-            scale_Z = self._param_Z[zone]/self._cloudy_default_Z
-            file.write("metals "+str(scale_Z)+" \n")
         
         
         if self._use_cosmic_rays_background:
@@ -342,7 +359,8 @@ class CloudyObject(converter.CloudyToSkirt):
                 if self._param_chemistry == 'abundances ism':
                     pass #really, add nothing!
                 elif self._param_chemistry == 'metals':
-                    self._param_Z.append(float(line_data[col]))
+                    self._param_Y.append(float(line_data[col]))
+                    self._param_Z.append(float(line_data[col+1]))
                     col += 1
                 #else not implemented
                 
