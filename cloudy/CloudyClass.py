@@ -96,6 +96,7 @@ class CloudyObject(converter.CloudyToSkirt):
         self._use_cosmic_rays_background = True #If false and cloudy encounters molecular gas, it may crash
         #CMB
         self._use_CMB = True
+        
         '''
         Known bug: If you give a table with too many significant digits to cloudy,
         it may crash due to overshoot in cloudy interpolation routine 
@@ -107,6 +108,7 @@ class CloudyObject(converter.CloudyToSkirt):
         '''
         self._n_digits = 4
         self.round_to = lambda n,x : round(x, -int(np.floor(np.log10(abs(x)))) + (n - 1))
+        
     
     def __checkIncompatibilites(self):
         if self._param_chemistry == 'abundances ism' and self._param_dust == 'dust to gas':
@@ -116,7 +118,7 @@ class CloudyObject(converter.CloudyToSkirt):
         elif self._param_dust == 'dust to gas' and any([elem < 0.0 for elem in self._param_DTG]):
             print("Warning: You are giving me partial data of the dust to gas ratio. I will use 'grains ism' of those zones in which I don't have the DTG ratio")
         #else OK
-    
+
     ### MAKE AND RUN CLOUDY INPUT
 
     def make_input(self,IOextensions,outfile="cloudyInput"):
@@ -131,7 +133,7 @@ class CloudyObject(converter.CloudyToSkirt):
             
             outfile = open(filename,'w')
             outfile.write("title cloudy zone "+str(z)+" \n")
-            self.__writeChemistry(outfile,z)
+            self.__writeChemistry(outfile,z,self._disable_qheat)
             self.__writeRadiation(outfile, sed_filename)
             self.__writeGeometry(outfile,z)
             self.__writeOptions(outfile)
@@ -144,10 +146,14 @@ class CloudyObject(converter.CloudyToSkirt):
             self.__inputs.append(filename.replace('.in','')) #Will be needed for running cloudy
     
     def run_input(self):
-        for currInput in self.__inputs:
+        for zone in range(0,len(self.__inputs)):
+            currInput = self.__inputs[zone]
             os.system(self.__ExePath+" -r "+currInput)
+            if self.__problemDisaster(currInput):
+                self.__errorHandleInput(zone,currInput)
+            #else do nothing
     
-    def __writeChemistry(self,file,zone):
+    def __writeChemistry(self,file,zone,no_qheat):
         hden       = np.log10(self._param_nH[zone]) #cloudy prefers the logarithm
         chemistry  = self._param_chemistry
         dust       = self._param_dust
@@ -159,7 +165,7 @@ class CloudyObject(converter.CloudyToSkirt):
             file.write(str(chemistry)+" no grains \n")
             if dust == 'grains ism':
                 file.write("grains ism ")
-                if self._disable_qheat:
+                if no_qheat:
                     file.write("no qheat \n")
                 else:
                     file.write("\n")
@@ -192,25 +198,25 @@ class CloudyObject(converter.CloudyToSkirt):
                     #Because it is easy to implement, it is here
                     #It does not scale the dust-to-gas ratio
                     #Nevertheless, you get a warning for taking this route
-                    if self._disable_qheat:
+                    if no_qheat:
                         file.write("no qheat \n")
                     else:
-                        file.write("\n")
+                        file.write(" \n")
                 else:
                     scale_DTG = self._param_DTG[zone]/self._cloudy_default_DTG
                     file.write("grains "+str(scale_DTG)+" ")
-                    if self._disable_qheat:
+                    if no_qheat:
                         file.write("no qheat \n")
                     else:
-                        file.write("\n")
+                        file.write(" \n")
             
                 #Add pah, if enabled
                 if self._enable_PAH:
                     file.write("grains pah ")
-                    if self._disable_qheat:
+                    if no_qheat:
                         file.write("no qheat \n")
                     else:
-                        file.write("\n")
+                        file.write(" \n")
         
         
         if self._use_cosmic_rays_background:
@@ -376,7 +382,62 @@ class CloudyObject(converter.CloudyToSkirt):
         self._n_zones = len(self._sedFiles)
         
         file.close()
+    
+    ### ERROR HANDLING ###       
+    
+    def __problemDisaster(self,filename):
+        # Checks if 'PROBLEM DISASTER' (phrase that appears when cloudy crashes) appears in the output
+        outfile = open(filename+'.out','r')
         
+        disaster_found = False
+        while True:
+            line = outfile.readline()
+            if not line:
+                break #EoF
+            elif 'PROBLEM DISASTER' in line:
+                disaster_found = True
+                break #cloudy crashed, no need for more reading
+        
+        outfile.close()
+        return disaster_found
+    
+    def __errorHandleInput(self,zone,filename):
+        #This method is used to avoid this script for crashing when cloudy crashes (if possible).
+        #Something, the crash is avoid by removing some options by the input.
+        
+        if self._disable_qheat == False:
+            '''
+            qheat error:
+                self._disable_qheat = False enables quantum heating in cloudy.
+                Sometimes, the cloudy code crashes when running related processes.
+                This is solved by disabling qheat with 'no qheat' in the cloudy inputs
+            '''
+            #Rewrite the input
+            os.system("rm "+filename+".in")
+            outfile = open(filename+".in",'w')
+            outfile.write("title cloudy zone "+str(zone)+" no qheat run \n")
+            self.__writeChemistry(outfile,zone,True) #I'm disabling qheat here
+            self.__writeRadiation(outfile, self._sedFiles[zone])
+            self.__writeGeometry(outfile,zone)
+            self.__writeOptions(outfile)
+            self.__writeOutputs(outfile,zone) #Needed outputs from cloudy
+            #No extra outputs
+            outfile.write("# Extra outputs are disabled for second, error handling, runs")
+            outfile.close()
+            
+            #Rerun input
+            os.system(self.__ExePath+" -r "+filename)
+            #And recheck if problem is solved
+            if self.__problemDisaster(filename):
+                #Not solved
+                raise RuntimeError("Cloudy crashed in zone "+str(zone)+". Removing qheat did not solve the issue. Check "+filename+".out for more details.")
+            else:
+                #Solved
+                print("Warning: Cloudy crashed in zone "+str(zone)+". I removed qheat in this zone and solved the issue.")
+            
+        else:
+            raise RuntimeError("Cloudy crashed in zone "+str(zone)+". Check "+filename+".out for more details.")
+    
     ### DEBUG ###
     
     def showParams(self):
