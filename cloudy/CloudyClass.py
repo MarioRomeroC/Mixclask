@@ -204,7 +204,7 @@ class CloudyObject(converter.CloudyToSkirt):
                         file.write(" \n")
                 else:
                     scale_DTG = self._param_DTG[zone]/self._cloudy_default_DTG
-                    file.write("grains "+str(scale_DTG)+" ")
+                    file.write(str(scale_DTG)+" ")
                     if no_qheat:
                         file.write("no qheat \n")
                     else:
@@ -213,10 +213,19 @@ class CloudyObject(converter.CloudyToSkirt):
                 #Add pah, if enabled
                 if self._enable_PAH:
                     file.write("grains pah ")
-                    if no_qheat:
-                        file.write("no qheat \n")
+                    if self._param_DTG[zone] < 0.0 or dust == 'grains ism':
+                        if no_qheat:
+                            print("Warning: the characteristic PAH emission won't be reflected if qheat is off")
+                            file.write("no qheat \n")
+                        else:
+                            file.write(" \n")
                     else:
-                        file.write(" \n")
+                        scale_PAH = self._param_DTG[zone]/self._cloudy_default_DTG
+                        file.write(str(scale_PAH)+" ")
+                        if no_qheat:
+                            file.write("no qheat \n")
+                        else:
+                            file.write(" \n")
         
         
         if self._use_cosmic_rays_background:

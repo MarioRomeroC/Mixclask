@@ -17,8 +17,6 @@ Mario Romero            July 2021
 '''
 
 import numpy as np
-from scipy.special import erf #error function
-#from cloudy.unkeep import readColumn, addColumn, findNormalization,downsample,mean
 import cloudy.unkeep as unk
 
 class CloudyToSkirt(object): #I need read_config
@@ -29,6 +27,7 @@ class CloudyToSkirt(object): #I need read_config
         wavelength_array = np.logspace(np.log10(self._wavelength_min),np.log10(self._wavelength_max),self._wavelength_res+1)
         for z in range(0,self._n_zones):
             #Get mean density
+            #print(z)
             overview_name = "overview_zone"+str(z)+extension
             composition_name = "composition_zone"+str(z)+extension
             rho = self._meanDensity(overview_name,composition_name)
@@ -43,8 +42,23 @@ class CloudyToSkirt(object): #I need read_config
             #unk.testDownsample(unk.mean(self.__lambda),nuLnu,unk.mean(self.__lambda),nuLnu*optical_depth_data[3])
             tau_shell = optical_depth_data[0]
             #massExtinctionCoeff = optical_depth_data[1]
-            #albedo = optical_depth_data[2]
-            nuLnu *= tau_shell / ( 1. - np.exp(-tau_shell) ) #optical_depth_data[3]
+            #albedo = optical_depth_data[2
+            try:
+                #Correct for self-absorption.
+                nuLnu_corrected = nuLnu * tau_shell / ( 1. - np.exp(-tau_shell) ) #optical_depth_data[3]
+                nuLnu = nuLnu_corrected
+            except FloatingPointError:
+                print("Warning: undeflow encountered in exp(-tau) in zone "+str(z))
+                nuLnu_corrected = np.empty(len(tau_shell))
+                for t in range(0,len(tau_shell)):
+                    exp_order_of_magnitude = -tau_shell[t] / np.log(10.0) # =log10(exp(-tau))
+                    if exp_order_of_magnitude <= -250.0:
+                        #exp(-tau) = 0, avoid the underflow!
+                        nuLnu_corrected[t] = nuLnu[t] * tau_shell[t]
+                    else:
+                        nuLnu_corrected[t] = nuLnu[t] * tau_shell[t] / ( 1. - np.exp(-tau_shell[t]) )
+                nuLnu = nuLnu_corrected
+                
             #Find normalization
             # I need two per zone: total optical depth and luminosity
             wv_norm = self._wavelength_norm
@@ -79,7 +93,7 @@ class CloudyToSkirt(object): #I need read_config
         abundances.close()
         rho = np.array(rho)
         
-        return np.trapz(rho,s) / (s[-1]-s[0])
+        return np.trapz(rho,s) / (s[-1]-s[0]) #Taking the mean of the zone...
     
     def _getOpacities(self,tau_name,rho,zone,wavelengths):
         #Return is [total optical depth, extinction coefficient (cm2/g), albedo]
