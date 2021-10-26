@@ -1,0 +1,6 @@
+# Geometry : point
+# Column 1 : SedFile
+# Column 3 : xPosition (pc)
+# Column 4 : yPosition (pc)
+# Column 5 : zPosition (pc)
+BlackBody_source.stab 0.0 0.0 0.0

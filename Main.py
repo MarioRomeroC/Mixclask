@@ -4,22 +4,20 @@
 import cloudy.CloudyClass as cc #class with all methods needed to operate with cloudy
 from skirt import pigs #source code that generates the .ski file
 from skirt.ski_params import SkiParams #class that contains all the data to generate the .ski file
-#from ski_params_v4 import SkiParams #Mass normalization
-#from ski_params_v2 import SkiParams
-#import sys
 import os
 import time
-from cloudy.unkeep import move #utility function
+from cloudy.unkeep import move #utility functions
 
 # Where are the gas and star parameters starting from this folder?
-gas_params  = 'input_data/params/BStar_gas_dust.dat'#MilkyWay_nuFnu_gas.dat'
-star_params = 'input_data/params/BStar_star.dat' #MilkyWay_nuFnu_stars.dat' 
-meanIntensity_positions = 'input_data/MeanIntensity_Positions/BStar_HighRes.txt'
+gas_params  = 'input_data/params/Your_gas_file.dat'
+star_params = 'input_data/params/Your_star_file.dat'  
+meanIntensity_positions = 'input_data/MeanIntensity_Positions/Your_positions.txt'
 
+# What are your spectra resolution and normalization?
 WavelengthOptions = {
-    'normalization': 1.0e7, #550.0,#1.0e7, #nm
-    'maxWavelength':1.0e9, #160000.0,#1.0e9, #nm
-    'minWavelength':0.1,#9.1,#0.1, #nm
+    'normalization': 1.0e7, #nm
+    'maxWavelength':1.0e9, #nm
+    'minWavelength':0.1, #nm
     'resolution':200
     }
 
@@ -34,10 +32,10 @@ ExtraCloudyOutputs = {
     }
 
 # Some technical parameters
-cloudy_path = '/home/mario/Cloudy/c17.01/source/cloudy.exe'
+cloudy_path = '/path/to/your/cloudy/exe'
 show_cloudy_params = False
 last_iteration = 0
-n_iterations = 15
+n_iterations = 3
 n_threads = 4
 
 ### MAIN ROUTINE ###
@@ -84,7 +82,7 @@ for it in range(1,n_iterations+1):
     skirt_params.prepareSkiFile()
     pigs.SkirtFile(skirt_params, output_path='skirt_file')
     
-    print("skirt -t "+str(n_threads)+" skirt_file.ski > tmp.txt")
+    #print("skirt -t "+str(n_threads)+" skirt_file.ski > tmp.txt")
     os.system("skirt -t "+str(n_threads)+" skirt_file.ski > tmp.txt") #Make sure you followed skirt instructions
     
     cloudy.GenerateCloudyFiles("skirt_file_nuJnu_J.dat")

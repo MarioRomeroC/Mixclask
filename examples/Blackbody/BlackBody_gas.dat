@@ -1,0 +1,23 @@
+# Geometry : shell
+# Chemistry : abundancesISM
+# Dust : grainsISM
+# Column 1 : SedFile
+# Column 2 : Mass (Msun)
+# Column 3 : HydrogenDensity (cm-3)
+# Column 4 : minRadius (pc)
+# Column 5 : maxRadius (pc)
+BlackBody_11.0pc.sed 105.90094806637414 1.0 10.0 12.0
+BlackBody_13.0pc.sed 147.79582862010466 1.0 12.0 14.0
+BlackBody_15.0pc.sed 196.67318926612344 1.0 14.0 16.0
+BlackBody_17.0pc.sed 252.5330300044307 1.0 16.0 18.0
+BlackBody_19.0pc.sed 315.3753508350265 1.0 18.0 20.0
+BlackBody_21.0pc.sed 385.2001517579103 1.0 20.0 22.0
+BlackBody_23.0pc.sed 462.0074327730829 1.0 22.0 24.0
+BlackBody_25.0pc.sed 545.7971938805439 1.0 24.0 26.0
+BlackBody_27.0pc.sed 636.569435080293 1.0 26.0 28.0
+BlackBody_29.0pc.sed 734.3241563723307 1.0 28.0 30.0
+BlackBody_31.0pc.sed 839.0613577566567 1.0 30.0 32.0
+BlackBody_33.0pc.sed 950.781039233272 1.0 32.0 34.0
+BlackBody_35.0pc.sed 1069.4832008021735 1.0 34.0 36.0
+BlackBody_37.0pc.sed 1195.1678424633653 1.0 36.0 38.0
+BlackBody_39.0pc.sed 1327.8349642168462 1.0 38.0 40.0
