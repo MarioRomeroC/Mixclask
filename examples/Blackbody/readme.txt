@@ -24,7 +24,7 @@ Finally, go to these lines:
 > n_threads = 4
 In 'cloudy_path' you must specify where 'cloudy.exe' is found in your computer. 
 If you installed cloudy normally, it should be in 'cXX.XX/source/cloudy.exe'. Where 'XX.XX' is the version of cloudy (e.g.: if version is 17.01, write c17.01).
-PLEASE NOTE that this isn't the full path, you must put before the location of 'cXX.XX/source/cloudy.exe' (i.e.: the folder where you have installed cloudy)
+PLEASE NOTE that this isn't the full path, you must put before the location of 'cXX.XX/source/cloudy.exe' (i.e.: the folder where you have installed cloudy), and the string must start with '/'
 Also, change 'n_iterations' to a number higher than 10 (3 is okay for galaxies, but not for this test, I suggest to write n_iterations = 15 to follow Romero et al.), 
 and change 'n_threads' to a lower value if you don't want to use a lot of CPUs.
 
