@@ -81,17 +81,22 @@ class CloudyObject(converter.CloudyToSkirt):
         These parameters are taken with a cloudy run with these commands:
             abundances gass
             grains ism
+            grains pah
+            set pah constant
             table ism
             stop zone 1
         Other options shown in this method are taken as FALSE and thus not included
         '''
         self._cloudy_default_Y   = 0.25057390087996967 #He abundance by default
         self._cloudy_default_Z   = 0.0134294404311891 #metals abundance by default
-        self._cloudy_default_DTG = 6.580e-03 #grains, but not pah, scales with this number.
+        self._cloudy_default_DTG = 0.006606 #dust-to-gas ratio scales with this number. Includes grains and pah
         
-        #Other chemistry options
-        self._disable_qheat = False
+        #PAH options
         self._enable_PAH = True
+        self._disable_qheat = False #If true, you won't see the usual pattern that pah make in the spectrum, but cloudy is somewhat more stable.
+        self._cloudy_default_qpah = 0.003962761126248864 #This is M_PAH/M_dust, or Pah-to-gas/dust-to-gas, assuming the same cloudy run as above.
+        self._forced_qpah = 0.05 #Default value of qpah is too low compared with observational measures, which give about an order of magnitude higher (see figure 9 of Galliano+17) 
+                                #Although this will be expanded as future work.
         #Cosmic rays
         self._use_cosmic_rays_background = True #If false and cloudy encounters molecular gas, it may crash
         #CMB
@@ -172,10 +177,12 @@ class CloudyObject(converter.CloudyToSkirt):
                 #Add pah, if desired
                 if self._enable_PAH:
                     file.write("grains pah ")
-                if self._disable_qheat:
-                    file.write("no qheat \n")
-                else:
-                    file.write("\n")
+                    if self._disable_qheat:
+                        file.write("no qheat \n")
+                    else:
+                        file.write("\n")
+                    file.write("set pah constant \n")
+                    
         #chemistry custom modes (you are giving at least Y and Z)
         elif chemistry == 'metals':
             #first, use solar abundances (see table 7.4 of cloudy hazy 1)
@@ -191,41 +198,45 @@ class CloudyObject(converter.CloudyToSkirt):
             if dust != False: #Dust is included in this model
                 #dust == True does not exist
                 #file.write("metals deplete \n")
+                '''
+                When dust is included in this model, Z is assumed to be for gas only.
+                If pah is enabled, dust is splitted in grains and pah according to q_PAH (see 'init_details()' for the numbers).
+                The cloudy input should look like this:
+                    grains ism DTG*(1-qpah)
+                    grains pah DTG*qpah
+                DTG is (DTG_given/self._default_DTG). (cloudy always asks for a number to rescale from its default, and does not want an absolute number)
+                In 'grains ism', qpah = self._forced_qpah.
+                In 'grains pah', qpah = (self._forced_qpah/self._default_qpah). As pah need to be rescaled from the default value of cloudy (see 'init_details')
+                Therefore, the DTG you give will be the DTG reported in cloudy with 'save grain D/G ratio'
+                '''
                 
+                #Normal grains
                 file.write("grains ism ") #It's the default, 'grains' does the same
-                
-                if self._param_DTG[zone] < 0.0 or dust == 'grains ism':
-                    #Because it is easy to implement, it is here
-                    #It does not scale the dust-to-gas ratio
-                    #Nevertheless, you get a warning for taking this route
-                    if no_qheat:
-                        file.write("no qheat \n")
-                    else:
-                        file.write(" \n")
-                else:
-                    scale_DTG = self._param_DTG[zone]/self._cloudy_default_DTG
-                    file.write(str(scale_DTG)+" ")
-                    if no_qheat:
-                        file.write("no qheat \n")
-                    else:
-                        file.write(" \n")
-            
-                #Add pah, if enabled
+                grains_scale = 1.0
+                if self._param_DTG[zone] >= 0.0 and dust != 'grains ism':
+                    grains_scale *= self._param_DTG[zone]/self._cloudy_default_DTG #This is the DTG from the '''
                 if self._enable_PAH:
+                    grains_scale *= (1.0-self._forced_qpah)
+                file.write(str(grains_scale))
+                if no_qheat:
+                    file.write(" no qheat \n")
+                else:
+                    file.write(" \n")
+                
+                #PAH
+                if self._enable_PAH: #Repeated for legibility
                     file.write("grains pah ")
-                    if self._param_DTG[zone] < 0.0 or dust == 'grains ism':
-                        if no_qheat:
-                            print("Warning: the characteristic PAH emission won't be reflected if qheat is off")
-                            file.write("no qheat \n")
-                        else:
-                            file.write(" \n")
+                    pah_scale = self._forced_qpah/self._cloudy_default_qpah
+                    if self._param_DTG[zone] >= 0.0 and dust != 'grains ism':
+                        pah_scale *= self._param_DTG[zone]/self._cloudy_default_DTG
+                    file.write(str(pah_scale))
+                    if no_qheat:
+                        print("Warning: the characteristic PAH emission won't be reflected if qheat is off")
+                        file.write(" no qheat \n")
                     else:
-                        scale_PAH = self._param_DTG[zone]/self._cloudy_default_DTG
-                        file.write(str(scale_PAH)+" ")
-                        if no_qheat:
-                            file.write("no qheat \n")
-                        else:
-                            file.write(" \n")
+                        file.write(" \n")
+                    #To make this value constant across a cloudy region
+                    file.write("set pah constant \n")
         
         
         if self._use_cosmic_rays_background:
