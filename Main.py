@@ -21,13 +21,19 @@ WavelengthOptions = {
     'resolution':200
     }
 
-ExtraCloudyOutputs = {
-    #Next outputs are not needed for this code to work properly, but you may want these results as well    
+#These outputs are useful for diagnostics, they are not needed for this code to work properly
+ExtraCloudyOutputs = {   
     'Emissivity': True, #Stores emissivity j at last zone of cloudy
     'Opacity':True, #Stores opacity alpha at last zone of cloudy
-    'RadiativeTransfer':False, #Stores j, alpha and albedo as function of depth
+    'RadiativeTransfer':{
+        'Active': False, #Stores j, alpha and albedo as function of depth
                                 #for particular wavelengths defined below
-    'Wavelengths': [150.0,443,550.0,1259,2200] #nm
+        'Wavelengths': [200.0,443.0,550.0,2200,24e3,150e3] #nm
+        },
+   'Grains':{
+       'Abundances': True, #Save grains abundances (g/cm3) of all species (dust and pah) as function of depth
+       'DTG':True #Save the dust-to-gas ratio of all species as function of depth
+       }
         
     }
 

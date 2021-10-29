@@ -290,10 +290,14 @@ class CloudyObject(converter.CloudyToSkirt):
             file.write('''save diffuse continuum "emissivity_zone'''+str(zone)+str(output_ext)+'''" last units nm \n''')
         if my_dict['Opacity']:
             file.write('''save total opacities "opacity_zone'''+str(zone)+str(output_ext)+'''" last units nm \n''')
-        if my_dict['RadiativeTransfer']:
+        if my_dict['RadiativeTransfer']['Active']:
             for wavelength in my_dict['Wavelengths']:
                 file.write('''save continuum emissivity '''+str(self.nm_to_Ryd(wavelength)))
                 file.write(''' "radTransfer_'''+str(wavelength)+"nm_zone"+str(zone)+str(output_ext)+'''" last \n''')
+        if my_dict['Grains']['Abundances']:
+            file.write('''save grain abundance "grainAbundance_zone'''+str(zone)+str(output_ext)+'''" last units nm \n''')
+        if my_dict['Grains']['DTG']:
+            file.write('''save grain D/G ratio "grainDTG_zone'''+str(zone)+str(output_ext)+'''" last units nm \n''')
     
     ### PARSE DATA ###
     
