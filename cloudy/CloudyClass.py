@@ -213,7 +213,7 @@ class CloudyObject(converter.CloudyToSkirt):
                 #Normal grains
                 file.write("grains ism ") #It's the default, 'grains' does the same
                 grains_scale = 1.0
-                if self._param_DTG[zone] >= 0.0 and dust != 'grains ism':
+                if dust != 'grains ism' and self._param_DTG[zone] >= 0.0:
                     grains_scale *= self._param_DTG[zone]/self._cloudy_default_DTG #This is the DTG from the '''
                 if self._enable_PAH:
                     grains_scale *= (1.0-self._forced_qpah)
