@@ -391,7 +391,7 @@ class CloudyObject(converter.CloudyToSkirt):
                 elif self._param_chemistry == 'metals':
                     self._param_Y.append(float(line_data[col]))
                     self._param_Z.append(float(line_data[col+1]))
-                    col += 1
+                    col += 2
                 #else not implemented
                 
                 ## Dust related columns
