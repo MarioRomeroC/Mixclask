@@ -227,7 +227,7 @@ class CloudyObject(converter.CloudyToSkirt):
                 if self._enable_PAH: #Repeated for legibility
                     file.write("grains pah ")
                     pah_scale = self._forced_qpah/self._cloudy_default_qpah
-                    if self._param_DTG[zone] >= 0.0 and dust != 'grains ism':
+                    if dust != 'grains ism' and self._param_DTG[zone] >= 0.0:
                         pah_scale *= self._param_DTG[zone]/self._cloudy_default_DTG
                     file.write(str(pah_scale))
                     if no_qheat:
