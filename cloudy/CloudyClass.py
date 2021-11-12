@@ -119,9 +119,9 @@ class CloudyObject(converter.CloudyToSkirt):
         if self._param_chemistry == 'abundances ism' and self._param_dust == 'dust to gas':
             raise RuntimeError("Sorry, but I do not allow to give a dust to gas with abundances ism command")
         elif self._param_chemistry == 'metals' and self._param_dust == 'grains ism':
-            print("Warning: You want a custom metalicity, but with ism grains. I will proceed, but don't cry if you don't like the results")
+            print("Warning: You want a custom metalicity, and grains ism. I will proceed, but bear in mind that you should, at least, scale dust-to-gas with metallicity.")
         elif self._param_dust == 'dust to gas' and any([elem < 0.0 for elem in self._param_DTG]):
-            print("Warning: You are giving me partial data of the dust to gas ratio. I will use 'grains ism' of those zones in which I don't have the DTG ratio")
+            print("Warning: You are giving me partial data of the dust to gas ratio. I will use 'grains ism', WITHOUT SCALING WITH Z, of those zones in which I don't have the DTG ratio")
         #else OK
 
     ### MAKE AND RUN CLOUDY INPUT
