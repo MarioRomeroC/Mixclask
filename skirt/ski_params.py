@@ -484,7 +484,7 @@ class SkiParams(object):
         Media_files = None
         Media_norm  = None
         if iteration0:
-            Media_files = [self._nullMaterialFile for i in range(0,len(self._gas_zones))]
+            Media_files = [self._nullMaterialFile for i in range(0,self._gas_zones)]
             Media_norm  = self._nullMass * np.ones(self._gas_zones)
         else:
             Media_files = get_from_folder(self._gas_opacity_folder)
