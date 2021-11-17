@@ -473,131 +473,131 @@ class SkiParams(object):
         #returns
         self.Sources = Sources
         
-        def __createMedia(self,iteration0):
-            # =============================================================================
-            # MEDIUM SYSTEM
-            # =============================================================================
-                    
-            Media = dict()
-            
-            #Define files needed for media if iteration0 is true or not
-            Media_files = None
-            Media_norm  = None
-            if iteration0:
-                Media_files = [self._nullMaterialFile for i in range(0,len(self._gas_zones))]
-                Media_norm  = self._nullMass * np.ones(self._gas_zones)
-            else:
-                Media_files = get_from_folder(self._gas_opacity_folder)
-                Media_norm  = get_mass_norm(self._gas_opacity_folder,'Msun') #It will check the third line of 'MeanFileDustMix', check if units are correct in your file
-            
-            # Basic properties 
-            Media['MediumSystem'] = { 'numDensitySamples':'100',
-                                       'photonPacketOptions':{'type':'PhotonPacketOptions',
-                                                              'PhotonPacketOptions':{
-                                                                  'forceScattering':True,
-                                                                  'minWeightReduction':1e4,
-                                                                  'minScattEvents':'0',
-                                                                  'pathLengthBias':'0.5'}},
-                   'extinctionOnlyOptions':{'type':'ExtinctionOnlyOptions',
-                                            'ExtinctionOnlyOptions':{
-                                                'storeRadiationField':'true',
-                                                'radiationFieldWLG':{'type':'DisjointWavelengthGrid',
-                                                                 'LogWavelengthGrid':{
-                                                                     'minWavelength':str(self._wavelength_min)+' nm',
-                                                                     'maxWavelength':str(self._wavelength_max)+' nm',
-                                                                     'numWavelengths': str(self._wavelength_res)
-                                                                                     }
-                                                                 }}
+    def __createMedia(self,iteration0):
+        # =============================================================================
+        # MEDIUM SYSTEM
+        # =============================================================================
+                
+        Media = dict()
+        
+        #Define files needed for media if iteration0 is true or not
+        Media_files = None
+        Media_norm  = None
+        if iteration0:
+            Media_files = [self._nullMaterialFile for i in range(0,len(self._gas_zones))]
+            Media_norm  = self._nullMass * np.ones(self._gas_zones)
+        else:
+            Media_files = get_from_folder(self._gas_opacity_folder)
+            Media_norm  = get_mass_norm(self._gas_opacity_folder,'Msun') #It will check the third line of 'MeanFileDustMix', check if units are correct in your file
+        
+        # Basic properties 
+        Media['MediumSystem'] = { 'numDensitySamples':'100',
+                                   'photonPacketOptions':{'type':'PhotonPacketOptions',
+                                                          'PhotonPacketOptions':{
+                                                              'forceScattering':True,
+                                                              'minWeightReduction':1e4,
+                                                              'minScattEvents':'0',
+                                                              'pathLengthBias':'0.5'}},
+               'extinctionOnlyOptions':{'type':'ExtinctionOnlyOptions',
+                                        'ExtinctionOnlyOptions':{
+                                            'storeRadiationField':'true',
+                                            'radiationFieldWLG':{'type':'DisjointWavelengthGrid',
+                                                             'LogWavelengthGrid':{
+                                                                 'minWavelength':str(self._wavelength_min)+' nm',
+                                                                 'maxWavelength':str(self._wavelength_max)+' nm',
+                                                                 'numWavelengths': str(self._wavelength_res)
+                                                                                 }
+                                                             }}
+                                        },
+               'dynamicStateOptions':{'type':'DynamicStateOptions', 
+                                      'DynamicStateOptions':{'hasDynamicState':False, #If true, uncomment lines after 'recipes'
+                                                             'minIterations':'1',
+                                                             'maxIterations':'10',
+                                                             'iterationPacketsMultiplier':'1'
+                                                             }
+                                      }
+                                    }
+        
+        Media['MediumSystem']['media'] = {'type':'Medium'}
+        
+        # GAS CONTINUUM MEDIA (several mediums sharing the same geometry)
+        
+        gasMedia_properties = None
+        
+        if self._gas_geometry == 'shell':
+            gasMedia_properties = {'GeometricMedium':{ #This line indicates the type of medium it is. Inside this dictionary you have ALL parameters needed for that medium
+                                        'velocityMagnitude':'0 km/s', 
+                                        'magneticFieldStrength':'0 uG',
+                                        
+                                        'geometry':{
+                                            'type':'Geometry',
+                                            'ShellGeometry':{
+                                                'minRadius': self._gas_minRadius, #All lists (here labelled as a variable) here must have length equal to 'n_gasSources'. 
+                                                'maxRadius': self._gas_maxRadius, 
+                                                'exponent': ['0']*self._gas_zones
+                                                }
                                             },
-                   'dynamicStateOptions':{'type':'DynamicStateOptions', 
-                                          'DynamicStateOptions':{'hasDynamicState':False, #If true, uncomment lines after 'recipes'
-                                                                 'minIterations':'1',
-                                                                 'maxIterations':'10',
-                                                                 'iterationPacketsMultiplier':'1'
-                                                                 }
-                                          }
+                                        'materialMix':{
+                                            'type':'MaterialMix',
+                                            'MeanFileDustMix':{'filename':Media_files}
+                                            },
+                                        'normalization':{
+                                            'type':'MaterialNormalization',
+                                            'MassMaterialNormalization':{
+                                                    'mass':Media_norm
+                                            }
                                         }
-            
-            Media['MediumSystem']['media'] = {'type':'Medium'}
-            
-            # GAS CONTINUUM MEDIA (several mediums sharing the same geometry)
-            
-            gasMedia_properties = None
-            
-            if self._gas_geometry == 'shell':
-                gasMedia_properties = {'GeometricMedium':{ #This line indicates the type of medium it is. Inside this dictionary you have ALL parameters needed for that medium
-                                            'velocityMagnitude':'0 km/s', 
-                                            'magneticFieldStrength':'0 uG',
-                                            
-                                            'geometry':{
-                                                'type':'Geometry',
-                                                'ShellGeometry':{
-                                                    'minRadius': self._gas_minRadius, #All lists (here labelled as a variable) here must have length equal to 'n_gasSources'. 
-                                                    'maxRadius': self._gas_maxRadius, 
-                                                    'exponent': ['0']*self._gas_zones
+                                    }
+                                }
+        elif self._gas_geometry == 'ring':
+            gasMedia_properties = {'GeometricMedium':{
+                                        'velocityMagnitude':'0 km/s', 
+                                        'magneticFieldStrength':'0 uG',
+                                        
+                                        'geometry':{
+                                            'type':'Geometry',
+                                            'RingGeometry':{
+                                                'ringRadius': self._gas_ringRadius,
+                                                'width': self._gas_ringWidth,
+                                                'height': self._gas_ringHeight
                                                     }
-                                                },
-                                            'materialMix':{
-                                                'type':'MaterialMix',
-                                                'MeanFileDustMix':{'filename':Media_files}
-                                                },
-                                            'normalization':{
-                                                'type':'MaterialNormalization',
-                                                'MassMaterialNormalization':{
-                                                        'mass':Media_norm
-                                                }
+                                            },
+                                        'materialMix':{
+                                            'type':'MaterialMix',
+                                            'MeanFileDustMix':{'filename':Media_files}
+                                            },
+                                        'normalization':{
+                                            'type':'MaterialNormalization',
+                                            'MassMaterialNormalization':{
+                                                    'mass':Media_norm
                                             }
                                         }
                                     }
-            elif self._gas_geometry == 'ring':
-                gasMedia_properties = {'GeometricMedium':{
-                                            'velocityMagnitude':'0 km/s', 
-                                            'magneticFieldStrength':'0 uG',
-                                            
-                                            'geometry':{
-                                                'type':'Geometry',
-                                                'RingGeometry':{
-                                                    'ringRadius': self._gas_ringRadius,
-                                                    'width': self._gas_ringWidth,
-                                                    'height': self._gas_ringHeight
-                                                        }
-                                                },
-                                            'materialMix':{
-                                                'type':'MaterialMix',
-                                                'MeanFileDustMix':{'filename':Media_files}
-                                                },
-                                            'normalization':{
-                                                'type':'MaterialNormalization',
-                                                'MassMaterialNormalization':{
-                                                        'mass':Media_norm
-                                                }
-                                            }
-                                        }
-                                    }
-            else:
-                raise RuntimeError("This message should really have never appeared")
-            
-            for ii in range(self._gas_zones): 
-                translated_gasMedia = translate_dictionary(gasMedia_properties,ii)
-                medium_ii  = translated_gasMedia[0]
-                medium_key = translated_gasMedia[1]
-                number_ii = str(ii+1).zfill(3)
-                Media['MediumSystem']['media'][(medium_key+" {}").format(number_ii)] = medium_ii 
+                                }
+        else:
+            raise RuntimeError("This message should really have never appeared")
+        
+        for ii in range(self._gas_zones): 
+            translated_gasMedia = translate_dictionary(gasMedia_properties,ii)
+            medium_ii  = translated_gasMedia[0]
+            medium_key = translated_gasMedia[1]
+            number_ii = str(ii+1).zfill(3)
+            Media['MediumSystem']['media'][(medium_key+" {}").format(number_ii)] = medium_ii 
+           
                
-                   
-            Media['MediumSystem']['grid'] = {'type':'SpatialGrid',
-                               'Cylinder2DSpatialGrid': {'maxRadius':self._border_r, 
-                                                         'minZ':'-'+self._border_z,
-                                                         'maxZ':self._border_z,
-                                                         'meshRadial':{'type':'Mesh',
-                                                                       'LinMesh':{'numBins':self._resolution_r}},
-                                                         'meshZ':{'type':'MoveableMesh',
-                                                                  'LinMesh':{'numBins':self._resolution_z}}
-                                                         }
-                               }       
-            
-            #returns
-            self.Media = Media
+        Media['MediumSystem']['grid'] = {'type':'SpatialGrid',
+                           'Cylinder2DSpatialGrid': {'maxRadius':self._border_r, 
+                                                     'minZ':'-'+self._border_z,
+                                                     'maxZ':self._border_z,
+                                                     'meshRadial':{'type':'Mesh',
+                                                                   'LinMesh':{'numBins':self._resolution_r}},
+                                                     'meshZ':{'type':'MoveableMesh',
+                                                              'LinMesh':{'numBins':self._resolution_z}}
+                                                     }
+                           }       
+        
+        #returns
+        self.Media = Media
             
     def __createInstruments(self):
         # =============================================================================
