@@ -4,7 +4,6 @@ Here you will find the files of the Blackbody test done in Romero et al. (in pre
 -BlackBody_source.stab is the emission spectra of the blackbody at the center of the simulation. This goes to 'star_sources' folder in 'input_data'
 -BlackBody_gas.dat contains the initial conditions of the gas. The files Mixclask will read the input spectra are in the first column, from the folder than contains 'main.py'.
 -Blackbody_star.dat contains the geometry and location of the stellar sources. Mixclask will look if the file in the first column exists in 'star_sources'.
--Iteration0 contains the input files that are described in 'BlackBody_gas.dat'.
 
 To run this test, COPY all files from Iteration0 into the root folder (where is 'Main.py').
 Enter in 'Main.py' and write in these lines:
@@ -13,6 +12,7 @@ Enter in 'Main.py' and write in these lines:
 > star_params = 'input_data/params/BlackBody_star.dat'
 > meanIntensity_positions = 'input_data/MeanIntensity_Positions/BlackBody_positions.txt'
 These assumes that you have placed these files as told you above.
+Next, you can tell the code if you are running from the beginning (iteration 0). This is the case, so keep 'is_iteration0 = True'.
 
 Now you can select in the "WavelengthOptions" dictionary your spectral resolution. For this test, you don't need to change these lines.
 Finally, go to these lines:

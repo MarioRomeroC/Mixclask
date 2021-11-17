@@ -1,0 +1,6 @@
+# No-material material, used for iteration 0. DO NOT REMOVE THIS FILE 
+# Column 1: wavelength (nm) 
+# Column 2: extinction mass coefficient (cm2/g) 
+# Column 3: albedo (1) 
+# Column 4: scattering asymmetry parameter (1) 
+1.0 1e-30 0.0 0.0

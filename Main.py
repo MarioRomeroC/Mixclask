@@ -12,6 +12,10 @@ from cloudy.unkeep import move #utility functions
 gas_params  = 'input_data/params/Your_gas_file.dat'
 star_params = 'input_data/params/Your_star_file.dat'  
 meanIntensity_positions = 'input_data/MeanIntensity_Positions/Your_positions.txt'
+# Do we start from the beginning?
+is_iteration0 = True # If true, mixclask will do a skirt simulation with only 'star_params' data before running cloudy
+                     # If false, you should have the results of the radiation field of a previous run in root folder (same as this file)
+                     #      For the latter case, it is useful if you want to do more iterations than originally intended.
 
 # What are your spectra resolution and normalization?
 WavelengthOptions = {
@@ -40,7 +44,7 @@ ExtraCloudyOutputs = {
 # Some technical parameters
 cloudy_path = '/path/to/your/cloudy/exe'
 show_cloudy_params = False
-last_iteration = 0
+last_iteration = 0 #Useful for tracking the number of iteration if 'is_iteration0=False'
 n_iterations = 3
 n_threads = 4
 
@@ -51,6 +55,23 @@ cloudy = cc.CloudyObject(gas_params,cloudy_path,WavelengthOptions)
 skirt_params = SkiParams(gas_params,star_params,meanIntensity_positions,WavelengthOptions)
 #cloudy.showParams()
 #raise
+### ITERATION 0 ###
+if is_iteration0:
+    last_iteration = 0
+    t_it = time.time()
+    print("iteration 0 ("+str(t_it-t_start)+" s):")
+    skirt_params.prepareSkiFile(is_iteration0)
+    pigs.SkirtFile(skirt_params, output_path='skirt_file')
+    
+    os.system("skirt -t "+str(n_threads)+" skirt_file.ski > tmp.txt") #Make sure you followed skirt instructions
+    cloudy.GenerateCloudyFiles("skirt_file_nuJnu_J.dat")
+    folder = "iteration0"
+    os.system("mkdir "+folder)
+    os.system("mv *.dat -t "+folder)
+    os.system("cp *.sed -t "+folder) #copy because I need these files in the root folder
+    os.system("mv *.ski -t "+folder)
+
+### FOLLOWING ITERATIONS ###
 for it in range(1,n_iterations+1):
     # =============================================================================
     # Create cloudy

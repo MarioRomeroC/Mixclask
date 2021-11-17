@@ -3,6 +3,7 @@ These are the folders used by mixclask.
 -gas_props and gas_sources saves the opacity and emission spectra, respectively, of the gas. Their files are generated and used by this code, without user intervention.
 -star_sources stores the emission spectra of any stellar sources, and should be included by the user. All files there should end in '.stab' (e.g.: your_source.stab)
 -params includes the input data of the run, and MeanIntensity_positions the positions of your simulation where you want the mean intensity. Info for these files are not given in this readme.
+-NullMaterial.stab is the medium source used for the iteration 0, before cloudy (and thus gas and dust properties) is called. Do not touch this file!
 
 About files in star_sources, they have this header:
  # Column 1: wavelength (nm) 

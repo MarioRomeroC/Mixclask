@@ -109,6 +109,10 @@ class SkiParams(object):
         self._resolution_z = 200
         #Skirt cries if you use 'ring' geometry and place one at R = 0pc
         self._skirt_ringRadius_correction = 0.01 #pc
+        #Iteration0 options
+        self._nullMaterialFile = 'params/NullMaterial.stab' #Skirt will use this file as 'material' in the iteration0 (should be a material without absorption and scattering)
+        self._nullMass = 1.0e-10 #Msun. Normalization of 'NullMaterial'. The ideal value is 0.0, but I selected a small number because skirt will not run instead
+
     
     def __deduceLimits(self):
         #limits are decided with gas zones.
@@ -241,11 +245,20 @@ class SkiParams(object):
     ### CREATE DICTIONARIES FOR SKIRT
     #Original code made by Pablo Corcho-Caballero
     
-    def prepareSkiFile(self):    
-            # =============================================================================
-            # BASIC PROPERTIES 
-            # =============================================================================
-            Basics = {
+    def prepareSkiFile(self,iteration0=False):    
+            
+            #Mario: For legibility, I split this method in subrutines
+            self.__createBasics()
+            self.__createSources(iteration0)
+            self.__createMedia(iteration0)
+            self.__createInstruments()
+            self.__createProbes()
+        
+    def __createBasics(self):
+        # =============================================================================
+        # BASIC PROPERTIES 
+        # =============================================================================
+        Basics = {
                     'MonteCarloSimulation':{
                         'userLevel':"Expert",
                         'simulationMode':"ExtinctionOnly",
@@ -263,126 +276,131 @@ class SkiParams(object):
                         'LocalUniverseCosmology':{}
                                 }
                     }
-                    }
-            self.Basics = Basics
-            # =============================================================================
-            # SOURCES 
-            # =============================================================================
-            Sources = dict()
-            
-            # Basic properties 
-            Sources['SourceSystem'] = {
-                                        'minWavelength': str(self._wavelength_min)+' nm',
-                                        'maxWavelength': str(self._wavelength_max)+' nm',
-                                        'wavelengths': str(self._wavelength_norm)+' nm',
-                                        'sourceBias': '0.5'
-                                        }
-            
-            Sources['SourceSystem']['sources'] = {'type':'Source'}
-            
-            # STELLAR SOURCES
-            n_skirt_sources_count = 0 #star+gas sources.
-            
-            starSource_properties = None
-            if self._star_geometry == 'shell':
-                starSource_properties = {'GeometricSource':{ #This line indicates the type of source it is. Inside this dictionary you have ALL parameters needed for that source
-                    		                'velocityMagnitude':'0 km/s', 
-                    		                'sourceWeight':"1", 
-                    		                'wavelengthBias':"0.5",
-                    		                
-                    		                'geometry':{
-                    		                    'type':'Geometry',
-                    		                    'ShellGeometry':{
-                        				            'minRadius': self._star_minRadius, #All lists (here labelled as a variable) here must have length equal to 'n_gasSources'. 
-                        				            'maxRadius': self._star_maxRadius, 
-                        				            'exponent': ['0']*self._star_zones
-                        		                        }
-                    		                    },
-                    		                'sed':{
-                    		                    'type':'SED',
-                    		                    'FileSED':{'filename':get_from_folder(self._star_sources_folder, self._star_files)}
-                    		                    },
-                    		                'normalization':{
-                    		                    'type':'LuminosityNormalization',
-                    		                    'SpecificLuminosityNormalization':{
-                    		                            'wavelength':get_norm_wavelength(self._star_sources_folder, 'nm', self._star_files), #It will check the third line of 'fileSED', check if units are correct in your file
-                    		                            'unitStyle':'neutralmonluminosity',
-                    		                            'specificLuminosity':get_norm(self._star_sources_folder, 'erg/s', self._star_files)} #It will check the fourth line of 'fileSED',check if units are correct in your file
-                    		                    }
-                    		                }
-                    		            }
-            elif self._star_geometry == 'ring':
-                starSource_properties = {'GeometricSource':{ #This line indicates the type of source it is. Inside this dictionary you have ALL parameters needed for that source
-                    		                'velocityMagnitude':'0 km/s', 
-                    		                'sourceWeight':"1", 
-                    		                'wavelengthBias':"0.5",
-                    		                
-                    		                'geometry':{
-                    		                    'type':'Geometry',
-                    		                    'RingGeometry':{
-                        				            'ringRadius': self._star_ringRadius, #All lists (here labelled as a variable) here must have length equal to 'n_gasSources'. 
-                        				            'width': self._star_ringWidth, 
-                        				            'height': self._star_ringHeight
+                }
+        #Return
+        self.Basics = Basics
+    
+    def __createSources(self,iteration0):
+        # =============================================================================
+        # SOURCES 
+        # =============================================================================
+        Sources = dict()
+        
+        # Basic properties 
+        Sources['SourceSystem'] = {
+                                    'minWavelength': str(self._wavelength_min)+' nm',
+                                    'maxWavelength': str(self._wavelength_max)+' nm',
+                                    'wavelengths': str(self._wavelength_norm)+' nm',
+                                    'sourceBias': '0.5'
+                                    }
+        
+        Sources['SourceSystem']['sources'] = {'type':'Source'}
+        
+        # STELLAR SOURCES
+        n_skirt_sources_count = 0 #star+gas sources.
+        
+        starSource_properties = None
+        if self._star_geometry == 'shell':
+            starSource_properties = {'GeometricSource':{ #This line indicates the type of source it is. Inside this dictionary you have ALL parameters needed for that source
+                		                'velocityMagnitude':'0 km/s', 
+                		                'sourceWeight':"1", 
+                		                'wavelengthBias':"0.5",
+                		                
+                		                'geometry':{
+                		                    'type':'Geometry',
+                		                    'ShellGeometry':{
+                    				            'minRadius': self._star_minRadius, #All lists (here labelled as a variable) here must have length equal to 'n_gasSources'. 
+                    				            'maxRadius': self._star_maxRadius, 
+                    				            'exponent': ['0']*self._star_zones
                     		                        }
-                    		                    },
-                    		                'sed':{
-                    		                    'type':'SED',
-                    		                    'FileSED':{'filename':get_from_folder(self._star_sources_folder, self._star_files)}
-                    		                    },
-                    		                'normalization':{
-                    		                    'type':'LuminosityNormalization',
-                    		                    'SpecificLuminosityNormalization':{
-                    		                            'wavelength':get_norm_wavelength(self._star_sources_folder, 'nm', self._star_files), #It will check the third line of 'fileSED', check if units are correct in your file
-                    		                            'unitStyle':'neutralmonluminosity',
-                    		                            'specificLuminosity':get_norm(self._star_sources_folder, 'erg/s', self._star_files)} #It will check the fourth line of 'fileSED',check if units are correct in your file
-                    		                    }
-                    		                }
-                    		            }
-            elif self._star_geometry == 'point':
-                starSource_properties = {'PointSource':{
-                                            'positionX': self._star_x,
-                                            'positionY': self._star_y,
-                                            'positionZ': self._star_x,
-                                            'velocityX': ['0 km/s']*self._star_zones,
-                                            'velocityY': ['0 km/s']*self._star_zones,
-                                            'velocityZ': ['0 km/s']*self._star_zones,
-                                            'sourceWeight': '1',
-                                            'wavelengthBias':'0.5',
-                                            'angularDistribution': {
-                                                'type':'AngularDistribution',
-                                                'IsotropicAngularDistribution':None #This is to copy '{}' in the dictionary
-                                                },
-                                            'polarizationProfile': {
-                                                'type': 'PolarizationProfile',
-                                                'NoPolarizationProfile':None
-                                                },
-                                                
-                                            'sed':{ 'type':'SED',
-                                                'FileSED':{'filename':get_from_folder(self._star_sources_folder, self._star_files)}},
-                                            'normalization':{
-                                                'type':'LuminosityNormalization',
-                                                'SpecificLuminosityNormalization':{
-                                                        'wavelength':get_norm_wavelength(self._star_sources_folder, 'nm', self._star_files),
-                                                        'unitStyle':'neutralmonluminosity',
-                                                        'specificLuminosity':get_norm(self._star_sources_folder, 'erg/s', self._star_files)}
-                                                }
+                		                    },
+                		                'sed':{
+                		                    'type':'SED',
+                		                    'FileSED':{'filename':get_from_folder(self._star_sources_folder, self._star_files)}
+                		                    },
+                		                'normalization':{
+                		                    'type':'LuminosityNormalization',
+                		                    'SpecificLuminosityNormalization':{
+                		                            'wavelength':get_norm_wavelength(self._star_sources_folder, 'nm', self._star_files), #It will check the third line of 'fileSED', check if units are correct in your file
+                		                            'unitStyle':'neutralmonluminosity',
+                		                            'specificLuminosity':get_norm(self._star_sources_folder, 'erg/s', self._star_files)} #It will check the fourth line of 'fileSED',check if units are correct in your file
+                		                    }
+                		                }
+                		            }
+        elif self._star_geometry == 'ring':
+            starSource_properties = {'GeometricSource':{ #This line indicates the type of source it is. Inside this dictionary you have ALL parameters needed for that source
+                		                'velocityMagnitude':'0 km/s', 
+                		                'sourceWeight':"1", 
+                		                'wavelengthBias':"0.5",
+                		                
+                		                'geometry':{
+                		                    'type':'Geometry',
+                		                    'RingGeometry':{
+                    				            'ringRadius': self._star_ringRadius, #All lists (here labelled as a variable) here must have length equal to 'n_gasSources'. 
+                    				            'width': self._star_ringWidth, 
+                    				            'height': self._star_ringHeight
+                		                        }
+                		                    },
+                		                'sed':{
+                		                    'type':'SED',
+                		                    'FileSED':{'filename':get_from_folder(self._star_sources_folder, self._star_files)}
+                		                    },
+                		                'normalization':{
+                		                    'type':'LuminosityNormalization',
+                		                    'SpecificLuminosityNormalization':{
+                		                            'wavelength':get_norm_wavelength(self._star_sources_folder, 'nm', self._star_files), #It will check the third line of 'fileSED', check if units are correct in your file
+                		                            'unitStyle':'neutralmonluminosity',
+                		                            'specificLuminosity':get_norm(self._star_sources_folder, 'erg/s', self._star_files)} #It will check the fourth line of 'fileSED',check if units are correct in your file
+                		                    }
+                		                }
+                		            }
+        elif self._star_geometry == 'point':
+            starSource_properties = {'PointSource':{
+                                        'positionX': self._star_x,
+                                        'positionY': self._star_y,
+                                        'positionZ': self._star_x,
+                                        'velocityX': ['0 km/s']*self._star_zones,
+                                        'velocityY': ['0 km/s']*self._star_zones,
+                                        'velocityZ': ['0 km/s']*self._star_zones,
+                                        'sourceWeight': '1',
+                                        'wavelengthBias':'0.5',
+                                        'angularDistribution': {
+                                            'type':'AngularDistribution',
+                                            'IsotropicAngularDistribution':None #This is to copy '{}' in the dictionary
+                                            },
+                                        'polarizationProfile': {
+                                            'type': 'PolarizationProfile',
+                                            'NoPolarizationProfile':None
+                                            },
+                                            
+                                        'sed':{ 'type':'SED',
+                                            'FileSED':{'filename':get_from_folder(self._star_sources_folder, self._star_files)}},
+                                        'normalization':{
+                                            'type':'LuminosityNormalization',
+                                            'SpecificLuminosityNormalization':{
+                                                    'wavelength':get_norm_wavelength(self._star_sources_folder, 'nm', self._star_files),
+                                                    'unitStyle':'neutralmonluminosity',
+                                                    'specificLuminosity':get_norm(self._star_sources_folder, 'erg/s', self._star_files)}
                                             }
                                         }
-            else:
-                raise RuntimeError("This message should have not appeared!")
-            
-            for ii in range(self._star_zones):
-                n_skirt_sources_count += 1
-                translated_stellarSource = translate_dictionary(starSource_properties,ii)
-                source_ii  = translated_stellarSource[0]
-                source_key = translated_stellarSource[1]
-                number_ii = str(n_skirt_sources_count).zfill(3)
-                #print("Stars: ", (source_key+" {}").format(number_ii))
-                Sources['SourceSystem']['sources'][(source_key+" {}").format(number_ii)] = source_ii
+                                    }
+        else:
+            raise RuntimeError("This message should have not appeared!")
         
-            
-            # GAS SOURCES
-            
+        for ii in range(self._star_zones):
+            n_skirt_sources_count += 1
+            translated_stellarSource = translate_dictionary(starSource_properties,ii)
+            source_ii  = translated_stellarSource[0]
+            source_key = translated_stellarSource[1]
+            number_ii = str(n_skirt_sources_count).zfill(3)
+            #print("Stars: ", (source_key+" {}").format(number_ii))
+            Sources['SourceSystem']['sources'][(source_key+" {}").format(number_ii)] = source_ii
+    
+        
+        # GAS SOURCES
+        #(skipped if iteration0 is True)
+        
+        if iteration0 == False:
             gasSource_properties = None
             #Mario: 0.0 pc is not allowed by skirt
             if self._gas_geometry == 'shell':
@@ -451,15 +469,26 @@ class SkiParams(object):
                 number_ii = str(n_skirt_sources_count).zfill(3)
                 #print("Gas: ", (source_key+" {}").format(number_ii))
                 Sources['SourceSystem']['sources'][(source_key+" {}").format(number_ii)] = source_ii
-            
-            
-            self.Sources = Sources    
-            
+        
+        #returns
+        self.Sources = Sources
+        
+        def __createMedia(self,iteration0):
             # =============================================================================
             # MEDIUM SYSTEM
             # =============================================================================
                     
             Media = dict()
+            
+            #Define files needed for media if iteration0 is true or not
+            Media_files = None
+            Media_norm  = None
+            if iteration0:
+                Media_files = [self._nullMaterialFile for i in range(0,len(self._gas_zones))]
+                Media_norm  = self._nullMass * np.ones(self._gas_zones)
+            else:
+                Media_files = get_from_folder(self._gas_opacity_folder)
+                Media_norm  = get_mass_norm(self._gas_opacity_folder,'Msun') #It will check the third line of 'MeanFileDustMix', check if units are correct in your file
             
             # Basic properties 
             Media['MediumSystem'] = { 'numDensitySamples':'100',
@@ -484,13 +513,7 @@ class SkiParams(object):
                                           'DynamicStateOptions':{'hasDynamicState':False, #If true, uncomment lines after 'recipes'
                                                                  'minIterations':'1',
                                                                  'maxIterations':'10',
-                                                                 'iterationPacketsMultiplier':'1',
-                                                                 #'recipes':{'type':'DynamicStateRecipe',
-                                                                 #           'ClearDensityRecipe':{
-                                                                 #               'maxNotConvergedCells':'0', 
-                                                                 #               'fieldStrengthThreshold':'1e9'
-                                                                 #               } 
-                                                                 #           }
+                                                                 'iterationPacketsMultiplier':'1'
                                                                  }
                                           }
                                         }
@@ -516,12 +539,12 @@ class SkiParams(object):
                                                 },
                                             'materialMix':{
                                                 'type':'MaterialMix',
-                                                'MeanFileDustMix':{'filename':get_from_folder(self._gas_opacity_folder)}
+                                                'MeanFileDustMix':{'filename':Media_files}
                                                 },
                                             'normalization':{
                                                 'type':'MaterialNormalization',
                                                 'MassMaterialNormalization':{
-                                                        'mass':get_mass_norm(self._gas_opacity_folder,'Msun') #It will check the third line of 'MeanFileDustMix', check if units are correct in your file
+                                                        'mass':Media_norm
                                                 }
                                             }
                                         }
@@ -541,12 +564,12 @@ class SkiParams(object):
                                                 },
                                             'materialMix':{
                                                 'type':'MaterialMix',
-                                                'MeanFileDustMix':{'filename':get_from_folder(self._gas_opacity_folder)}
+                                                'MeanFileDustMix':{'filename':Media_files}
                                                 },
                                             'normalization':{
                                                 'type':'MaterialNormalization',
                                                 'MassMaterialNormalization':{
-                                                        'mass':get_mass_norm(self._gas_opacity_folder,'Msun')
+                                                        'mass':Media_norm
                                                 }
                                             }
                                         }
@@ -573,107 +596,80 @@ class SkiParams(object):
                                                          }
                                }       
             
+            #returns
             self.Media = Media
-            # =============================================================================
-            # INSTRUMENTS
-            # =============================================================================
-            Instruments = dict()
-             
-            Instruments['InstrumentSystem'] = {'defaultWavelengthGrid':{
+            
+    def __createInstruments(self):
+        # =============================================================================
+        # INSTRUMENTS
+        # =============================================================================
+        Instruments = dict()
+         
+        Instruments['InstrumentSystem'] = {'defaultWavelengthGrid':{
                 'type':'WavelengthGrid',
                 'LogWavelengthGrid':{
                     'minWavelength':str(self._wavelength_min)+' nm',
                     'maxWavelength':str(self._wavelength_max)+' nm',
                     'numWavelengths':str(self._wavelength_res)} 
                 }
-                                               }
-            
-            Instruments['InstrumentSystem']['instruments']={
-                                    'type':'Instrument',
-                                     'SEDInstrument 1':{
-                                             'instrumentName':'ised', 
-                                             'distance':self._fluxProbeDistance,
-                                             'inclination':'0 deg',
-                                             'azimuth':'0',
-                                             'roll':'0 deg',
-                                             'radius':'0 pc',
-                                             'recordComponents':'true', 
-                                             'numScatteringLevels': '0', 
-                                             'recordPolarization':'false', 
-                                             'recordStatistics':'false',
-                                             'wavelengthGrid':{'type':'WavelengthGrid',
-                                                               'LogWavelengthGrid':{
-                                                                       'minWavelength':str(self._wavelength_min)+' nm',
-                                                                       'maxWavelength':str(self._wavelength_max)+' nm',
-                                                                       'numWavelengths':str(self._wavelength_res)
-                                                                                   }
-                                                       }
-                                         },
-                                     # 2:{'type':'FrameInstrument',
-                                     # 'instrumentName':'instrument_camera_fo', 
-                                     # 'distance':'1 Mpc',
-                                     # 'inclination':'0 deg',
-                                     # 'azimuth':'0',
-                                     # 'roll':'0 deg',
-                                     # 'fieldOfViewX':'30 kpc',
-                                     # 'numPixelsX':'300',
-                                     # 'centerX':'0 kpc',
-                                     # 'fieldOfViewY':'30 kpc',
-                                     # 'numPixelsY':'300',
-                                     # 'centerY':'0 kpc',                                                 
-                                     # 'recordComponents':'true', 
-                                     # 'numScatteringLevels':'0', 
-                                     # 'recordPolarization':'false', 
-                                     # 'recordStatistics':'false'},
-                                     # 3:{'type':'FrameInstrument',
-                                     # 'instrumentName':'instrument_camera_eo', 
-                                     # 'distance':'1 Mpc',
-                                     # 'inclination':'90 deg',
-                                     # 'azimuth':'0',
-                                     # 'roll':'0 deg',
-                                     # 'fieldOfViewX':'30 kpc',
-                                     # 'numPixelsX':'300',
-                                     # 'centerX':'0 kpc',
-                                     # 'fieldOfViewY':'30 kpc',
-                                     # 'numPixelsY':'300',
-                                     # 'centerY':'0 kpc',                                                 
-                                     # 'recordComponents':'true', 
-                                     # 'numScatteringLevels':'0', 
-                                     # 'recordPolarization':'false', 
-                                     # 'recordStatistics':'false'}
-                                        }
-            self.Instruments = Instruments
-            # =============================================================================
-            # PROBES
-            # =============================================================================
-            
-            Probes = dict()
-            
-            Probes['ProbeSystem'] = {
-                'probes':{'type':'Probe',    
-                'LuminosityProbe 1':{
-                                    'probeName':'source_lum',
-                                    'wavelengthGrid':{'type':'WavelengthGrid',
-                                     'LogWavelengthGrid':{
-                                         'minWavelength':str(self._wavelength_min)+' nm',
-                                         'maxWavelength':str(self._wavelength_max)+' nm',
-                                         'numWavelengths':str(self._wavelength_res)
-                                                          }
-                                     }
-                                    },
-                'SpatialGridConvergenceProbe 1':{'probeName':"conv",
-                                                 'wavelength':str(self._wavelength_norm)+' nm'
-                                                 },
-                'RadiationFieldAtPositionsProbe 1':{
-                    'probeName':"nuJnu",
-                    'filename':self.__MeanIntensity_Positions,
-                    'useColumns':"",
-                    'writeWavelengthGrid':"false"
-                                                },
-                'InstrumentWavelengthGridProbe 1':{'probeName':"grid"},    
-                'RadiationFieldWavelengthGridProbe 1':{'probeName':"radGrid"}                        
-                        }
-                }    
-            self.Probes = Probes
+            }
         
+        Instruments['InstrumentSystem']['instruments']={
+                                'type':'Instrument',
+                                 'SEDInstrument 1':{
+                                         'instrumentName':'ised', 
+                                         'distance':self._fluxProbeDistance,
+                                         'inclination':'0 deg',
+                                         'azimuth':'0',
+                                         'roll':'0 deg',
+                                         'radius':'0 pc',
+                                         'recordComponents':'true', 
+                                         'numScatteringLevels': '0', 
+                                         'recordPolarization':'false', 
+                                         'recordStatistics':'false',
+                                         'wavelengthGrid':{'type':'WavelengthGrid',
+                                                           'LogWavelengthGrid':{
+                                                                   'minWavelength':str(self._wavelength_min)+' nm',
+                                                                   'maxWavelength':str(self._wavelength_max)+' nm',
+                                                                   'numWavelengths':str(self._wavelength_res)
+                                                                               }
+                                                   }
+                                     },
+                                 }
+        #returns
+        self.Instruments = Instruments
+    
+    def __createProbes(self):
+        # =============================================================================
+        # PROBES
+        # =============================================================================
         
+        Probes = dict()
+        
+        Probes['ProbeSystem'] = {
+            'probes':{'type':'Probe',    
+            'LuminosityProbe 1':{
+                                'probeName':'source_lum',
+                                'wavelengthGrid':{'type':'WavelengthGrid',
+                                 'LogWavelengthGrid':{
+                                     'minWavelength':str(self._wavelength_min)+' nm',
+                                     'maxWavelength':str(self._wavelength_max)+' nm',
+                                     'numWavelengths':str(self._wavelength_res)
+                                                      }
+                                 }
+                                },
+            'SpatialGridConvergenceProbe 1':{'probeName':"conv",
+                                             'wavelength':str(self._wavelength_norm)+' nm'
+                                             },
+            'RadiationFieldAtPositionsProbe 1':{
+                'probeName':"nuJnu",
+                'filename':self.__MeanIntensity_Positions,
+                'useColumns':"",
+                'writeWavelengthGrid':"false"
+                                            },
+            'InstrumentWavelengthGridProbe 1':{'probeName':"grid"},    
+            'RadiationFieldWavelengthGridProbe 1':{'probeName':"radGrid"}                        
+                    }
+            }
+        #returns
+        self.Probes = Probes
