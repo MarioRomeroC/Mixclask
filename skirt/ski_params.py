@@ -110,7 +110,7 @@ class SkiParams(object):
         #Skirt cries if you use 'ring' geometry and place one at R = 0pc
         self._skirt_ringRadius_correction = 0.01 #pc
         #Iteration0 options
-        self._nullMaterialFile = 'params/NullMaterial.stab' #Skirt will use this file as 'material' in the iteration0 (should be a material without absorption and scattering)
+        self._nullMaterialFile = 'input_data/params/NullMaterial.stab' #Skirt will use this file as 'material' in the iteration0 (should be a material without absorption and scattering)
         self._nullMass = 1.0e-10 #Msun. Normalization of 'NullMaterial'. The ideal value is 0.0, but I selected a small number because skirt will not run instead
 
     
