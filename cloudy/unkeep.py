@@ -24,6 +24,33 @@ def generateSkirtFile(scriptFolder,scriptFile):
     os.system("cd -") #Return to original directory
 
 # =============================================================================
+# ROUTINES WITH LISTS
+# =============================================================================
+
+def relist(my_str):
+    #Geometry data comes in lists : ['type', param1, param2, etc]
+    #When read from a file, the list is my_str = "['type', param1, param2, etc]"
+    #This function is to revert this
+    
+    #Remove some characters
+    tmp_list = my_str.replace('[','')
+    tmp_list = tmp_list.replace(']','')
+    tmp_list = tmp_list.replace("'",'')
+    
+    #Create the list
+    tmp_list = tmp_list.split(',')
+    
+    #Convert in floats any number inside my_list
+    my_list = []
+    for elem in tmp_list:
+        try:
+            my_list.append(float(elem))
+        except ValueError:
+            my_list.append(elem)
+    
+    return my_list
+
+# =============================================================================
 # ROUTINES WITH ARRAYS
 # =============================================================================
 

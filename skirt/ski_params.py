@@ -10,6 +10,7 @@ Created on Wed Aug 25 11:12:18 2021
 # -*- coding: utf-8 -*-
 from skirt.get_sed import get_from_folder, get_norm, get_norm_wavelength, get_optdepth_norm, get_optdepth_wavelength, get_mass_norm
 from flatten_dict import flatten, unflatten
+from cloudy.unkeep import relist
 import numpy as np
 
 def iterate_over_dict(dictionary):
@@ -57,31 +58,18 @@ class SkiParams(object):
     
     def __initParams(self):
         #Geometry GAS params
-        self._gas_geometry  = None
-        #'shell' geometry
-        self._gas_minRadius = []
-        self._gas_maxRadius = []
-        #'ring' geometry
-        self._gas_ringRadius = []
-        self._gas_ringWidth  = []
-        self._gas_ringHeight = []
+        self._gas_geometry  = []
+        #'shell' geometry = ['shell',Rin,Rout] -> Rin = inner radius, Rout = outer radius
+        #'ring' geometry = ['ring',R,w,h] -> R=middle radius, w=width, h=height
         #number of gas zones
         self._gas_zones = None
         
         #Geometry STAR params
-        self._star_geometry = None
         self._star_files = []
-        #'shell' geometry
-        self._star_minRadius = []
-        self._star_maxRadius = []
-        #'ring' geometry
-        self._star_ringRadius = []
-        self._star_ringWidth  = []
-        self._star_ringHeight = []
-        #'point' geometry
-        self._star_x = []
-        self._star_y = []
-        self._star_z = []
+        self._star_geometry = []
+        #'shell' geometry -> Same as gas
+        #'ring' geometry -> Same as gas
+        #'point' geometry -> ['point',x,y,z]
         #number of stellar zones
         self._star_zones = None
     
@@ -109,6 +97,7 @@ class SkiParams(object):
         self._resolution_z = 200
         #Skirt cries if you use 'ring' geometry and place one at R = 0pc
         self._skirt_ringRadius_correction = 0.01 #pc
+        self._z_ring_limit = 5.0 #In case of all gas-zones are 'ring' geometry, The upper limit would be this number multiplied by the maximum height (h) found in all zones 
         #Iteration0 options
         self._nullMaterialFile = 'input_data/params/NullMaterial.stab' #Skirt will use this file as 'material' in the iteration0 (should be a material without absorption and scattering)
         self._nullMass = 1.0e-10 #Msun. Normalization of 'NullMaterial'. The ideal value is 0.0, but I selected a small number because skirt will not run instead
@@ -116,33 +105,40 @@ class SkiParams(object):
     
     def __deduceLimits(self):
         #limits are decided with gas zones.
-        if self._gas_geometry == 'shell':
-            self._border_r = self._gas_maxRadius[-1] #This should give 'X pc' or similar, depending of 'self._geometry_units'
-            self._border_z = self._border_r
-        elif self._gas_geometry == 'ring':
-            #Not that straightforward
-            self._border_r  = float(self._gas_ringRadius[-1].replace(self._geometryUnits,''))
-            self._border_r += float(self._gas_ringWidth[-1].replace(self._geometryUnits,''))
-            self._border_r  = str(self._border_r)+self._geometryUnits
-            #Especially z-axis limits.
-            factor = 5.0 #Because potato
-            self._border_z  = float(self._gas_ringHeight[-1].replace(self._geometryUnits,''))
-            self._border_z *= factor
-            self._border_z  = str(self._border_z)+self._geometryUnits
+        #We first need to find the greater radius
+        R_max = 0.0
+        z_max = 0.0
+        for ii in range(0,self._gas_zones):
+            Rcan = None
+            if self._gas_geometry[ii][0] == 'shell':
+                Rcan = self._gas_geometry[ii][2] #Rout
+                zcan = Rcan #Spherical symmetry!
+            elif self._gas_geometry[ii][0] == 'ring':
+                Rcan = self._gas_geometry[ii][1] + self._gas_geometry[ii][2] #R+w
+                zcan = self._gas_geometry[ii][3]*self._z_ring_limit #h*self._z_ring_limit
+            else:
+                raise RuntimeError("Geometry not implemented!")
+            
+            if Rcan > R_max:
+                R_max = Rcan
+            if zcan > z_max:
+                z_max = zcan
+        
+        self._border_r = str(R_max)+self._geometryUnits
+        self._border_z = str(z_max)+self._geometryUnits
     
     def __checkSkirtIssues(self):
         #(1) If ring geometry is set and some of 'ringRadius' is 0.0
         #   Skirt crashes due they do not accept rings with R=0
-        radius_correction = '0.01 pc'
-        if self._gas_geometry == 'ring':# and any(R == '0.0 pc' for R in self._gas_ringRadius):
-            for r in range(0,len(self._gas_ringRadius)):
-                if self._gas_ringRadius[r] == '0.0 pc':
-                    self._gas_ringRadius[r] = radius_correction
+        radius_correction = 0.01 #self._geometry_units
+        for ii in range(0,self._gas_zones):
+            if self._gas_geometry[ii][0] == 'ring' and self._gas_geometry[ii][1] == 0.0:
+                self._gas_geometry[ii][1] == radius_correction
+        
         #Same issue with stars
-        if self._star_geometry == 'ring':
-            for r in range(0,len(self._star_ringRadius)):
-                if self._star_ringRadius[r] == '0.0 pc':
-                    self._star_ringRadius[r] = radius_correction
+        for ii in range(0,self._star_zones):
+            if self._star_geometry[ii][0] == 'ring' and self._star_geometry[ii][1] == 0.0:
+                self._star_geometry[ii][1] == radius_correction
     
     ### PARSING DATA
     
@@ -151,94 +147,33 @@ class SkiParams(object):
         #Type has two options: 'Gas' or 'Star'
         file = open(file_path,'r')
         
-        #Prepare some arrays first to avoid too many if evaluations
-        file_geometry = None
-        
-        file_minRadius = []
-        file_maxRadius = []
-        
-        file_ringRadius = []
-        file_ringWidth  = []
-        file_ringHeight = []
-        
-        file_x = []
-        file_y = []
-        file_z = []
+        header = []
         
         #Read the file
-        geometry_units = self._geometryUnits
-        n_rows = 0
-        starting_col = 1 if Type == 'Star' else 3 #For gas files, first columns are the sed file, the mass and nH
         while True:
             line = file.readline()
             if not line: break #EoF
             line_data = line.split()
             
-            if line_data[0] == '#' and line_data[1].lower() == 'geometry':
-                #parse options
-                #line for parsing is '# geometry : shell', therefore
-                file_geometry = line_data[3].lower()
-            elif line_data[0] == '#': 
-                continue
+            if line_data[0] == '#':
+                #I should expect: '# Column X : Key (units)
+                header.append(line_data[4].lower())
             else:
-                n_rows += 1
-                #Get relevant data
-                #Column 1 is always the sed file for stars:
+                #If this is the star file
                 if Type == 'Star':
-                    self._star_files.append(line_data[0])
-                #Now the variable columns
-                col = starting_col
-                ## Geometry related columns
-                if file_geometry == 'shell':
-                    file_minRadius.append(line_data[col]+geometry_units)
-                    file_maxRadius.append(line_data[col+1]+geometry_units)
-                    col += 2
-                elif file_geometry == 'ring':
-                    file_ringRadius.append(line_data[col]+geometry_units)
-                    file_ringWidth.append(line_data[col+1]+geometry_units)
-                    file_ringHeight.append(line_data[col+2]+geometry_units)
-                    col += 3
-                elif file_geometry == 'point':
-                    file_x.append(line_data[col]+geometry_units)
-                    file_y.append(line_data[col+1]+geometry_units)
-                    file_z.append(line_data[col+2]+geometry_units)
-                else:
-                    raise RuntimeError("Geometry not implemented!")
-                    
-        #And the final param
-        file_zones = n_rows
-        
+                    self._star_files.append(line_data[header.index('sedfile')])
+                    self._star_geometry.append(relist(line_data[header.index('geometry')]))
+                elif Type == 'Gas':
+                    #only this input is needed for skirt
+                    self._gas_geometry.append(relist(line_data[header.index('geometry')]))
+                
         file.close()
         
         #Now tell me if data is 'gas' or 'star'
         if Type == 'Gas':
-            self._gas_geometry = file_geometry
-            self._gas_zones = file_zones
-            if self._gas_geometry == 'shell':
-                self._gas_minRadius = file_minRadius
-                self._gas_maxRadius = file_maxRadius
-            elif self._gas_geometry == 'ring':
-                self._gas_ringRadius = file_ringRadius
-                self._gas_ringWidth  = file_ringWidth
-                self._gas_ringHeight = file_ringHeight
-            else:
-                raise RuntimeError("Gas can never be a point source!")
+            self._gas_zones  = len(self._gas_geometry)
         elif Type == 'Star':
-            self._star_geometry = file_geometry
-            self._star_zones = file_zones
-            if self._star_geometry == 'shell':
-                self._star_minRadius = file_minRadius
-                self._star_maxRadius = file_maxRadius
-            elif self._star_geometry == 'ring':
-                self._star_ringRadius = file_ringRadius
-                self._star_ringWidth  = file_ringWidth
-                self._star_ringHeight = file_ringHeight
-            elif self._star_geometry == 'point':
-                self._star_x = file_x
-                self._star_y = file_y
-                self._star_z = file_z
-            else:
-                raise RuntimeError("This error message should have not appeared!")
+            self._star_zones = len(self._star_geometry)
         
         #Now yes, the end!
     
@@ -300,96 +235,120 @@ class SkiParams(object):
         n_skirt_sources_count = 0 #star+gas sources.
         
         starSource_properties = None
-        if self._star_geometry == 'shell':
-            starSource_properties = {'GeometricSource':{ #This line indicates the type of source it is. Inside this dictionary you have ALL parameters needed for that source
-                		                'velocityMagnitude':'0 km/s', 
-                		                'sourceWeight':"1", 
-                		                'wavelengthBias':"0.5",
-                		                
-                		                'geometry':{
-                		                    'type':'Geometry',
-                		                    'ShellGeometry':{
-                    				            'minRadius': self._star_minRadius, #All lists (here labelled as a variable) here must have length equal to 'n_gasSources'. 
-                    				            'maxRadius': self._star_maxRadius, 
-                    				            'exponent': ['0']*self._star_zones
+        all_star_files        = get_from_folder(self._star_sources_folder, self._star_files)
+        stars_norm_wavelength = get_norm_wavelength(self._star_sources_folder, 'nm', self._star_files), #It will check the third line of 'fileSED', check if units are correct in your file
+        stars_norm_value      = get_norm(self._star_sources_folder, 'erg/s', self._star_files) #It will check the fourth line of 'fileSED',check if units are correct in your file
+        
+        #print(stars_norm_wavelength)
+        for ii in range(0,self._star_zones):
+            n_skirt_sources_count += 1
+            #print(ii)
+            star_file_ii  = all_star_files[ii]
+            norm_wl_ii    = [stars_norm_wavelength[0][ii]]
+            norm_value_ii = [stars_norm_value[ii]]
+        
+            if self._star_geometry[ii][0] == 'shell':
+                Rin  = str(self._star_geometry[ii][1])+self._geometryUnits #e.g.: '3.0 pc'
+                Rout = str(self._star_geometry[ii][2])+self._geometryUnits
+                
+                starSource_properties = {'GeometricSource':{ #This line indicates the type of source it is. Inside this dictionary you have ALL parameters needed for that source
+                    		                'velocityMagnitude':'0 km/s', 
+                    		                'sourceWeight':"1", 
+                    		                'wavelengthBias':"0.5",
+                    		                
+                    		                'geometry':{
+                    		                    'type':'Geometry',
+                    		                    'ShellGeometry':{
+                        				            'minRadius': [Rin],  
+                        				            'maxRadius': [Rout], 
+                        				            'exponent': ['0']
+                        		                        }
+                    		                    },
+                    		                'sed':{
+                    		                    'type':'SED',
+                    		                    'FileSED':{'filename':[star_file_ii]}
+                    		                    },
+                    		                'normalization':{
+                    		                    'type':'LuminosityNormalization',
+                    		                    'SpecificLuminosityNormalization':{
+                    		                            'wavelength':norm_wl_ii,
+                    		                            'unitStyle':'neutralmonluminosity',
+                    		                            'specificLuminosity':norm_value_ii} 
+                    		                    }
+                    		                }
+                    		            }
+            elif self._star_geometry[ii][0] == 'ring':
+                R = str(self._star_geometry[ii][1])+self._geometryUnits
+                w = str(self._star_geometry[ii][2])+self._geometryUnits
+                h = str(self._star_geometry[ii][3])+self._geometryUnits
+                
+                starSource_properties = {'GeometricSource':{ #This line indicates the type of source it is. Inside this dictionary you have ALL parameters needed for that source
+                    		                'velocityMagnitude':'0 km/s', 
+                    		                'sourceWeight':"1", 
+                    		                'wavelengthBias':"0.5",
+                    		                
+                    		                'geometry':{
+                    		                    'type':'Geometry',
+                    		                    'RingGeometry':{
+                        				            'ringRadius': [R], 
+                        				            'width': [w], 
+                        				            'height': [h]
                     		                        }
-                		                    },
-                		                'sed':{
-                		                    'type':'SED',
-                		                    'FileSED':{'filename':get_from_folder(self._star_sources_folder, self._star_files)}
-                		                    },
-                		                'normalization':{
-                		                    'type':'LuminosityNormalization',
-                		                    'SpecificLuminosityNormalization':{
-                		                            'wavelength':get_norm_wavelength(self._star_sources_folder, 'nm', self._star_files), #It will check the third line of 'fileSED', check if units are correct in your file
-                		                            'unitStyle':'neutralmonluminosity',
-                		                            'specificLuminosity':get_norm(self._star_sources_folder, 'erg/s', self._star_files)} #It will check the fourth line of 'fileSED',check if units are correct in your file
-                		                    }
-                		                }
-                		            }
-        elif self._star_geometry == 'ring':
-            starSource_properties = {'GeometricSource':{ #This line indicates the type of source it is. Inside this dictionary you have ALL parameters needed for that source
-                		                'velocityMagnitude':'0 km/s', 
-                		                'sourceWeight':"1", 
-                		                'wavelengthBias':"0.5",
-                		                
-                		                'geometry':{
-                		                    'type':'Geometry',
-                		                    'RingGeometry':{
-                    				            'ringRadius': self._star_ringRadius, #All lists (here labelled as a variable) here must have length equal to 'n_gasSources'. 
-                    				            'width': self._star_ringWidth, 
-                    				            'height': self._star_ringHeight
-                		                        }
-                		                    },
-                		                'sed':{
-                		                    'type':'SED',
-                		                    'FileSED':{'filename':get_from_folder(self._star_sources_folder, self._star_files)}
-                		                    },
-                		                'normalization':{
-                		                    'type':'LuminosityNormalization',
-                		                    'SpecificLuminosityNormalization':{
-                		                            'wavelength':get_norm_wavelength(self._star_sources_folder, 'nm', self._star_files), #It will check the third line of 'fileSED', check if units are correct in your file
-                		                            'unitStyle':'neutralmonluminosity',
-                		                            'specificLuminosity':get_norm(self._star_sources_folder, 'erg/s', self._star_files)} #It will check the fourth line of 'fileSED',check if units are correct in your file
-                		                    }
-                		                }
-                		            }
-        elif self._star_geometry == 'point':
-            starSource_properties = {'PointSource':{
-                                        'positionX': self._star_x,
-                                        'positionY': self._star_y,
-                                        'positionZ': self._star_x,
-                                        'velocityX': ['0 km/s']*self._star_zones,
-                                        'velocityY': ['0 km/s']*self._star_zones,
-                                        'velocityZ': ['0 km/s']*self._star_zones,
-                                        'sourceWeight': '1',
-                                        'wavelengthBias':'0.5',
-                                        'angularDistribution': {
-                                            'type':'AngularDistribution',
-                                            'IsotropicAngularDistribution':None #This is to copy '{}' in the dictionary
-                                            },
-                                        'polarizationProfile': {
-                                            'type': 'PolarizationProfile',
-                                            'NoPolarizationProfile':None
-                                            },
-                                            
-                                        'sed':{ 'type':'SED',
-                                            'FileSED':{'filename':get_from_folder(self._star_sources_folder, self._star_files)}},
-                                        'normalization':{
-                                            'type':'LuminosityNormalization',
-                                            'SpecificLuminosityNormalization':{
-                                                    'wavelength':get_norm_wavelength(self._star_sources_folder, 'nm', self._star_files),
-                                                    'unitStyle':'neutralmonluminosity',
-                                                    'specificLuminosity':get_norm(self._star_sources_folder, 'erg/s', self._star_files)}
+                    		                    },
+                    		                'sed':{
+                    		                    'type':'SED',
+                    		                    'FileSED':{'filename':[star_file_ii]}
+                    		                    },
+                    		                'normalization':{
+                    		                    'type':'LuminosityNormalization',
+                    		                    'SpecificLuminosityNormalization':{
+                    		                            'wavelength':norm_wl_ii, 
+                    		                            'unitStyle':'neutralmonluminosity',
+                    		                            'specificLuminosity':norm_value_ii} 
+                    		                    }
+                    		                }
+                    		            }
+                
+            elif self._star_geometry[ii][0] == 'point':
+                x = str(self._star_geometry[ii][1])+self._geometryUnits
+                y = str(self._star_geometry[ii][2])+self._geometryUnits
+                z = str(self._star_geometry[ii][3])+self._geometryUnits
+                
+                starSource_properties = {'PointSource':{
+                                            'positionX': [x],
+                                            'positionY': [y],
+                                            'positionZ': [z],
+                                            'velocityX': ['0 km/s'],
+                                            'velocityY': ['0 km/s'],
+                                            'velocityZ': ['0 km/s'],
+                                            'sourceWeight': '1',
+                                            'wavelengthBias':'0.5',
+                                            'angularDistribution': {
+                                                'type':'AngularDistribution',
+                                                'IsotropicAngularDistribution':None #This is to copy '{}' in the dictionary
+                                                },
+                                            'polarizationProfile': {
+                                                'type': 'PolarizationProfile',
+                                                'NoPolarizationProfile':None
+                                                },
+                                                
+                                            'sed':{ 'type':'SED',
+                                                'FileSED':{'filename':[star_file_ii]},
+                                            'normalization':{
+                                                'type':'LuminosityNormalization',
+                                                'SpecificLuminosityNormalization':{
+                                                        'wavelength':norm_wl_ii,
+                                                        'unitStyle':'neutralmonluminosity',
+                                                        'specificLuminosity':norm_value_ii}
+                                                    }
+                                                }
                                             }
                                         }
-                                    }
-        else:
-            raise RuntimeError("This message should have not appeared!")
+            else:
+                raise RuntimeError("This message should have not appeared!")
         
-        for ii in range(self._star_zones):
-            n_skirt_sources_count += 1
-            translated_stellarSource = translate_dictionary(starSource_properties,ii)
+        
+            translated_stellarSource = translate_dictionary(starSource_properties,0)
             source_ii  = translated_stellarSource[0]
             source_key = translated_stellarSource[1]
             number_ii = str(n_skirt_sources_count).zfill(3)
@@ -402,67 +361,84 @@ class SkiParams(object):
         
         if iteration0 == False:
             gasSource_properties = None
-            #Mario: 0.0 pc is not allowed by skirt
-            if self._gas_geometry == 'shell':
-                gasSource_properties = {'GeometricSource':{
-                                            'velocityMagnitude':'0 km/s', 
-                                            'sourceWeight':"1", 
-                                            'wavelengthBias':"0.5",
-                                            
-                                            'geometry':{
-                                                'type':'Geometry',
-                                                'ShellGeometry':{
-                                                    'minRadius': self._gas_minRadius,
-                                                    'maxRadius': self._gas_maxRadius, 
-                                                    'exponent': ['0']*self._gas_zones
-                                                    }
-                                                },
-                                            'sed':{
-                                                'type':'SED',
-                                                'FileSED':{'filename':get_from_folder(self._gas_sources_folder)}
-                                                },
-                                            'normalization':{
-                                                'type':'LuminosityNormalization',
-                                                'SpecificLuminosityNormalization':{
-                                                        'wavelength':get_norm_wavelength(self._gas_sources_folder, 'nm'),
-                                                        'unitStyle':'neutralmonluminosity',
-                                                        'specificLuminosity':get_norm(self._gas_sources_folder, 'erg/s')}
-                                                }
-                                            }
-                                        }
-            elif self._gas_geometry == 'ring':
-                gasSource_properties = {'GeometricSource':{
-                                            'velocityMagnitude':'0 km/s', 
-                                            'sourceWeight':"1", 
-                                            'wavelengthBias':"0.5",
-                                            
-                                            'geometry':{
-                                                'type':'Geometry',
-                                                'RingGeometry':{
-                                                    'ringRadius': self._gas_ringRadius, #All lists (here labelled as a variable) here must have length equal to 'n_gasSources'. 
-                        				            'width': self._gas_ringWidth, 
-                        				            'height': self._gas_ringHeight
-                                                    }
-                                                },
-                                            'sed':{
-                                                'type':'SED',
-                                                'FileSED':{'filename':get_from_folder(self._gas_sources_folder)}
-                                                },
-                                            'normalization':{
-                                                'type':'LuminosityNormalization',
-                                                'SpecificLuminosityNormalization':{
-                                                        'wavelength':get_norm_wavelength(self._gas_sources_folder, 'nm'),
-                                                        'unitStyle':'neutralmonluminosity',
-                                                        'specificLuminosity':get_norm(self._gas_sources_folder, 'erg/s')}
-                                                }
-                                            }
-                                        }
-            else:
-                raise RuntimeError("This message should not have appeared!")
             
-            for ii in range(self._gas_zones):
+            all_gas_files       = get_from_folder(self._gas_sources_folder)
+            gas_norm_wavelength = get_norm_wavelength(self._gas_sources_folder, 'nm')
+            gas_norm_value      = get_norm(self._gas_sources_folder, 'erg/s')
+            for ii in range(0,self._gas_zones):
                 n_skirt_sources_count += 1
-                translated_gasSource = translate_dictionary(gasSource_properties,ii)
+                
+                gas_file_ii   = all_gas_files[ii]
+                norm_wl_ii    = [gas_norm_wavelength[ii]]
+                norm_value_ii = [gas_norm_value[ii]]
+                
+                if self._gas_geometry[ii][0] == 'shell':
+                    Rin  = str(self._gas_geometry[ii][1])+self._geometryUnits #e.g.: '3.0 pc'
+                    Rout = str(self._gas_geometry[ii][2])+self._geometryUnits
+                    
+                    gasSource_properties = {'GeometricSource':{
+                                                'velocityMagnitude':'0 km/s', 
+                                                'sourceWeight':"1", 
+                                                'wavelengthBias':"0.5",
+                                                
+                                                'geometry':{
+                                                    'type':'Geometry',
+                                                    'ShellGeometry':{
+                                                        'minRadius': [Rin],
+                                                        'maxRadius': [Rout], 
+                                                        'exponent': ['0']
+                                                        }
+                                                    },
+                                                'sed':{
+                                                    'type':'SED',
+                                                    'FileSED':{'filename':[gas_file_ii]}
+                                                    },
+                                                'normalization':{
+                                                    'type':'LuminosityNormalization',
+                                                    'SpecificLuminosityNormalization':{
+                                                            'wavelength':norm_wl_ii,
+                                                            'unitStyle':'neutralmonluminosity',
+                                                            'specificLuminosity':norm_value_ii}
+                                                    }
+                                                }
+                                            }
+                    
+                elif self._gas_geometry[ii][0] == 'ring':
+                    R = str(self._gas_geometry[ii][1])+self._geometryUnits
+                    w = str(self._gas_geometry[ii][2])+self._geometryUnits
+                    h = str(self._gas_geometry[ii][3])+self._geometryUnits
+                    
+                    gasSource_properties = {'GeometricSource':{
+                                                'velocityMagnitude':'0 km/s', 
+                                                'sourceWeight':"1", 
+                                                'wavelengthBias':"0.5",
+                                                
+                                                'geometry':{
+                                                    'type':'Geometry',
+                                                    'RingGeometry':{
+                                                        'ringRadius': [R], 
+                            				            'width': [w], 
+                            				            'height': [h]
+                                                        }
+                                                    },
+                                                'sed':{
+                                                    'type':'SED',
+                                                    'FileSED':{'filename':[gas_file_ii]}
+                                                    },
+                                                'normalization':{
+                                                    'type':'LuminosityNormalization',
+                                                    'SpecificLuminosityNormalization':{
+                                                            'wavelength':norm_wl_ii,
+                                                            'unitStyle':'neutralmonluminosity',
+                                                            'specificLuminosity':norm_value_ii}
+                                                    }
+                                                }
+                                            }
+                else:
+                    raise RuntimeError("This message should not have appeared!")
+            
+            
+                translated_gasSource = translate_dictionary(gasSource_properties,0)
                 source_ii  = translated_gasSource[0]
                 source_key = translated_gasSource[1]
                 #number_ii = str(ii+1).zfill(3)
@@ -479,16 +455,6 @@ class SkiParams(object):
         # =============================================================================
                 
         Media = dict()
-        
-        #Define files needed for media if iteration0 is true or not
-        Media_files = None
-        Media_norm  = None
-        if iteration0:
-            Media_files = [self._nullMaterialFile for i in range(0,self._gas_zones)]
-            Media_norm  = self._nullMass * np.ones(self._gas_zones)
-        else:
-            Media_files = get_from_folder(self._gas_opacity_folder)
-            Media_norm  = get_mass_norm(self._gas_opacity_folder,'Msun') #It will check the third line of 'MeanFileDustMix', check if units are correct in your file
         
         # Basic properties 
         Media['MediumSystem'] = { 'numDensitySamples':'100',
@@ -523,62 +489,80 @@ class SkiParams(object):
         # GAS CONTINUUM MEDIA (several mediums sharing the same geometry)
         
         gasMedia_properties = None
-        
-        if self._gas_geometry == 'shell':
-            gasMedia_properties = {'GeometricMedium':{ #This line indicates the type of medium it is. Inside this dictionary you have ALL parameters needed for that medium
-                                        'velocityMagnitude':'0 km/s', 
-                                        'magneticFieldStrength':'0 uG',
-                                        
-                                        'geometry':{
-                                            'type':'Geometry',
-                                            'ShellGeometry':{
-                                                'minRadius': self._gas_minRadius, #All lists (here labelled as a variable) here must have length equal to 'n_gasSources'. 
-                                                'maxRadius': self._gas_maxRadius, 
-                                                'exponent': ['0']*self._gas_zones
-                                                }
-                                            },
-                                        'materialMix':{
-                                            'type':'MaterialMix',
-                                            'MeanFileDustMix':{'filename':Media_files}
-                                            },
-                                        'normalization':{
-                                            'type':'MaterialNormalization',
-                                            'MassMaterialNormalization':{
-                                                    'mass':Media_norm
-                                            }
-                                        }
-                                    }
-                                }
-        elif self._gas_geometry == 'ring':
-            gasMedia_properties = {'GeometricMedium':{
-                                        'velocityMagnitude':'0 km/s', 
-                                        'magneticFieldStrength':'0 uG',
-                                        
-                                        'geometry':{
-                                            'type':'Geometry',
-                                            'RingGeometry':{
-                                                'ringRadius': self._gas_ringRadius,
-                                                'width': self._gas_ringWidth,
-                                                'height': self._gas_ringHeight
-                                                    }
-                                            },
-                                        'materialMix':{
-                                            'type':'MaterialMix',
-                                            'MeanFileDustMix':{'filename':Media_files}
-                                            },
-                                        'normalization':{
-                                            'type':'MaterialNormalization',
-                                            'MassMaterialNormalization':{
-                                                    'mass':Media_norm
-                                            }
-                                        }
-                                    }
-                                }
+        #Define files needed for media if iteration0 is true or not
+        Media_files = None
+        Media_norm  = None
+        if iteration0:
+            Media_files = [self._nullMaterialFile for i in range(0,self._gas_zones)]
+            Media_norm  = self._nullMass * np.ones(self._gas_zones)
         else:
-            raise RuntimeError("This message should really have never appeared")
+            Media_files = get_from_folder(self._gas_opacity_folder)
+            Media_norm  = get_mass_norm(self._gas_opacity_folder,'Msun') #It will check the third line of 'MeanFileDustMix', check if units are correct in your file
         
-        for ii in range(self._gas_zones): 
-            translated_gasMedia = translate_dictionary(gasMedia_properties,ii)
+        for ii in range(0,self._gas_zones): 
+        
+            if self._gas_geometry[ii][0] == 'shell':
+                Rin  = str(self._gas_geometry[ii][1])+self._geometryUnits #e.g.: '3.0 pc'
+                Rout = str(self._gas_geometry[ii][2])+self._geometryUnits
+                
+                gasMedia_properties = {'GeometricMedium':{ #This line indicates the type of medium it is. Inside this dictionary you have ALL parameters needed for that medium
+                                            'velocityMagnitude':'0 km/s', 
+                                            'magneticFieldStrength':'0 uG',
+                                            
+                                            'geometry':{
+                                                'type':'Geometry',
+                                                'ShellGeometry':{
+                                                    'minRadius': [Rin],  
+                                                    'maxRadius': [Rout], 
+                                                    'exponent': ['0']
+                                                    }
+                                                },
+                                            'materialMix':{
+                                                'type':'MaterialMix',
+                                                'MeanFileDustMix':{'filename':[Media_files[ii]]}
+                                                },
+                                            'normalization':{
+                                                'type':'MaterialNormalization',
+                                                'MassMaterialNormalization':{
+                                                        'mass':[Media_norm[ii]]
+                                                }
+                                            }
+                                        }
+                                    }
+            elif self._gas_geometry[ii][0] == 'ring':
+                R = str(self._gas_geometry[ii][1])+self._geometryUnits
+                w = str(self._gas_geometry[ii][2])+self._geometryUnits
+                h = str(self._gas_geometry[ii][3])+self._geometryUnits
+                
+                gasMedia_properties = {'GeometricMedium':{
+                                            'velocityMagnitude':'0 km/s', 
+                                            'magneticFieldStrength':'0 uG',
+                                            
+                                            'geometry':{
+                                                'type':'Geometry',
+                                                'RingGeometry':{
+                                                    'ringRadius': [R],
+                                                    'width': [w],
+                                                    'height': [h]
+                                                        }
+                                                },
+                                            'materialMix':{
+                                                'type':'MaterialMix',
+                                                'MeanFileDustMix':{'filename':[Media_files[ii]]}
+                                                },
+                                            'normalization':{
+                                                'type':'MaterialNormalization',
+                                                'MassMaterialNormalization':{
+                                                        'mass':[Media_norm[ii]]
+                                                }
+                                            }
+                                        }
+                                    }
+            else:
+                raise RuntimeError("This message should really have never appeared")
+        
+        
+            translated_gasMedia = translate_dictionary(gasMedia_properties,0)
             medium_ii  = translated_gasMedia[0]
             medium_key = translated_gasMedia[1]
             number_ii = str(ii+1).zfill(3)

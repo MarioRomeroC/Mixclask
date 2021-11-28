@@ -74,7 +74,7 @@ class CloudyToSkirt(object): #I need read_config
     
     def _meanDensity(self,overview_name,composition_name):
         #Here we get the density from overview and composition files
-        #Revise this function later
+        #In this manner, result is not dependent of geometry (the alternative would be Mass/Volume)
         
         #Get depth s
         s   = unk.readColumn(overview_name,0)
@@ -140,12 +140,16 @@ class CloudyToSkirt(object): #I need read_config
     
     def _getThickness(self,zone):
         #return thickness in pc
-        if self._param_geometry == 'shell':
+        if self._geometry[zone][0] == 'shell':
+            #self._geometry = ['shell',Rin,Rout]
+            Rin  = self._geometry[zone][1]
+            Rout = self._geometry[zone][2]
             #thickness is the half width of each zone
-            return (self._param_maxRadius[zone] - self._param_minRadius[zone])/2.0
-        elif self._param_geometry == 'ring':
+            return (Rout - Rin)/2.0
+        elif self._geometry[zone][0] == 'ring':
+            #self._geometry = ['ring',R,w,h]. w= width
             #thickness is the whole width of each zone
-            return self._param_ringWidth[zone]
+            return self._geometry[zone][2]
         else:
             raise RuntimeError("Geometry not implemented!")
         

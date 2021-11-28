@@ -9,7 +9,7 @@ Mario Romero            July 2021
 
 import os
 #import glob
-#from cloudy.unkeep import move
+from cloudy.unkeep import relist
 import cloudy.ConverterMethods as converter
 #import src.ParserClass as parser
 import numpy as np
@@ -22,17 +22,12 @@ class CloudyObject(converter.CloudyToSkirt):
         self.__ExePath = cloudy_path
         self.__defineConstants() #Needed for ConvertedMethods
         self.__initDetails()
-        self.__checkIncompatibilites()
         
         #self.showParams() #used for debug
     
     ### INITIALIZATION
     
     def __initParams(self):
-        #Params to fill
-        self._param_geometry = None
-        self._param_chemistry = None
-        self._param_dust = None
         
         #Mandatory
         self._sedFiles = []
@@ -46,13 +41,10 @@ class CloudyObject(converter.CloudyToSkirt):
         self._param_DTG = [] #Dust-to-gas
         
         #Geometry-dependend (not all of them are filled by run)
-        #'shell' geometry
-        self._param_minRadius = []
-        self._param_maxRadius = []
-        #'ring' geometry
-        self._param_ringRadius = []
-        self._param_ringWidth  = []
-        self._param_ringHeight = []
+        self._geometry = [] #Each element of this list contains [Geometry-Type,params]
+        #^^For example, [['ring',3,0.5,0.2],['shell',3.5,4.5]] indicates that first zone is a ring with their params, and second zone a shell with their params
+        
+        
         
     def __initWavelengths(self,wavelength_dict):
         self._wavelength_max  = wavelength_dict['maxWavelength']
@@ -100,7 +92,7 @@ class CloudyObject(converter.CloudyToSkirt):
         #Cosmic rays
         self._use_cosmic_rays_background = True #If false and cloudy encounters molecular gas, it may crash
         #CMB
-        self._use_CMB = True
+        self._use_CMB = False
         
         '''
         Known bug: If you give a table with too many significant digits to cloudy,
@@ -113,16 +105,6 @@ class CloudyObject(converter.CloudyToSkirt):
         '''
         self._n_digits = 4
         self.round_to = lambda n,x : round(x, -int(np.floor(np.log10(abs(x)))) + (n - 1))
-        
-    
-    def __checkIncompatibilites(self):
-        if self._param_chemistry == 'abundances ism' and self._param_dust == 'dust to gas':
-            raise RuntimeError("Sorry, but I do not allow to give a dust to gas with abundances ism command")
-        elif self._param_chemistry == 'metals' and self._param_dust == 'grains ism':
-            print("Warning: You want a custom metalicity, and grains ism. I will proceed, but bear in mind that you should, at least, scale dust-to-gas with metallicity.")
-        elif self._param_dust == 'dust to gas' and any([elem < 0.0 for elem in self._param_DTG]):
-            print("Warning: You are giving me partial data of the dust to gas ratio. I will use 'grains ism', WITHOUT SCALING WITH Z, of those zones in which I don't have the DTG ratio")
-        #else OK
 
     ### MAKE AND RUN CLOUDY INPUT
 
@@ -159,16 +141,12 @@ class CloudyObject(converter.CloudyToSkirt):
             #else do nothing
     
     def __writeChemistry(self,file,zone,no_qheat):
-        hden       = np.log10(self._param_nH[zone]) #cloudy prefers the logarithm
-        chemistry  = self._param_chemistry
-        dust       = self._param_dust
-        file.write("## CHEMICAL COMPOSITION \n")
-        file.write("hden "+str(hden)+" \n")
+        #Mandatory parameters
+        hden = np.log10(self._param_nH[zone]) #cloudy prefers the logarithm
         
-        #chemistry default mode
-        if chemistry == 'abundances ism':
-            file.write(str(chemistry)+" no grains \n")
-            if dust == 'grains ism':
+        def __writeDust():
+            #Encapsulated here, as here is the only place where you use it
+            if self._param_DTG[zone] == None: #Default option
                 file.write("grains ism ")
                 if no_qheat:
                     file.write("no qheat \n")
@@ -182,22 +160,7 @@ class CloudyObject(converter.CloudyToSkirt):
                     else:
                         file.write("\n")
                     file.write("set pah constant \n")
-                    
-        #chemistry custom modes (you are giving at least Y and Z)
-        elif chemistry == 'metals':
-            #first, use solar abundances (see table 7.4 of cloudy hazy 1)
-            #THIS ABUNDANCES DOES NOT ADD GRAINS (see table 7.2 of cloudy hazy 1)
-            file.write("abundances gass \n")
-            #He content
-            scale_He = self._param_Y[zone] / self._cloudy_default_Y
-            file.write("element helium scale "+str(scale_He)+" \n")
-            #Metal content
-            scale_Z = self._param_Z[zone]/self._cloudy_default_Z
-            file.write("metals "+str(scale_Z)+" \n")
-            
-            if dust != False: #Dust is included in this model
-                #dust == True does not exist
-                #file.write("metals deplete \n")
+            elif self._param_DTG[zone] > 0.0:
                 '''
                 When dust is included in this model, Z is assumed to be for gas only.
                 If pah is enabled, dust is splitted in grains and pah according to q_PAH (see 'init_details()' for the numbers).
@@ -209,12 +172,8 @@ class CloudyObject(converter.CloudyToSkirt):
                 In 'grains pah', qpah = (self._forced_qpah/self._default_qpah). As pah need to be rescaled from the default value of cloudy (see 'init_details')
                 Therefore, the DTG you give will be the DTG reported in cloudy with 'save grain D/G ratio'
                 '''
-                
-                #Normal grains
                 file.write("grains ism ") #It's the default, 'grains' does the same
-                grains_scale = 1.0
-                if dust != 'grains ism' and self._param_DTG[zone] >= 0.0:
-                    grains_scale *= self._param_DTG[zone]/self._cloudy_default_DTG #This is the DTG from the '''
+                grains_scale = self._param_DTG[zone]/self._cloudy_default_DTG #This is the DTG from the '''
                 if self._enable_PAH:
                     grains_scale *= (1.0-self._forced_qpah)
                 file.write(str(grains_scale))
@@ -227,8 +186,7 @@ class CloudyObject(converter.CloudyToSkirt):
                 if self._enable_PAH: #Repeated for legibility
                     file.write("grains pah ")
                     pah_scale = self._forced_qpah/self._cloudy_default_qpah
-                    if dust != 'grains ism' and self._param_DTG[zone] >= 0.0:
-                        pah_scale *= self._param_DTG[zone]/self._cloudy_default_DTG
+                    pah_scale *= self._param_DTG[zone]/self._cloudy_default_DTG
                     file.write(str(pah_scale))
                     if no_qheat:
                         print("Warning: the characteristic PAH emission won't be reflected if qheat is off")
@@ -237,6 +195,30 @@ class CloudyObject(converter.CloudyToSkirt):
                         file.write(" \n")
                     #To make this value constant across a cloudy region
                     file.write("set pah constant \n")
+                
+            #else do nothing
+                
+        file.write("## CHEMICAL COMPOSITION \n")
+        file.write("hden "+str(hden)+" \n")
+        
+        if self._param_Y[zone] == None: #Default options
+            file.write("abundaces ism no grains \n")
+            __writeDust()
+            
+        else:
+            #if Z is given but not specific metals
+            #first, use solar abundances (see table 7.4 of cloudy hazy 1)
+            #THESE ABUNDANCES DOES NOT ADD GRAINS (see table 7.2 of cloudy hazy 1)
+            file.write("abundances gass \n")
+            #He content
+            scale_He = self._param_Y[zone] / self._cloudy_default_Y
+            file.write("element helium scale "+str(scale_He)+" \n")
+            #Metal content
+            scale_Z = self._param_Z[zone]/self._cloudy_default_Z
+            file.write("metals "+str(scale_Z)+" \n")
+            
+            __writeDust()
+            
         
         
         if self._use_cosmic_rays_background:
@@ -267,19 +249,6 @@ class CloudyObject(converter.CloudyToSkirt):
     def __writeGeometry(self,file,zone):
         file.write("## GEOMETRY \n")
         thickness = self._getThickness(zone) #In ConvertedMethods
-        '''
-        if self._param_geometry == 'shell':
-            #thickness is the half width of each zone
-            thickness = (self._param_maxRadius[zone] - self._param_minRadius[zone])/2.0
-            #NEXT TWO OPTIONS ARE MEANT TO BE USED FOR DEBUG!
-            #file.write("sphere static \n")
-            #minRadius = self._param_minRadius[zone]
-            #file.write("radius "+str(radius+thickness)+" parsec linear \n")
-        elif self._param_geometry == 'ring':
-            #thickness is the whole width of each zone
-            thickness = self._param_ringWidth[zone]
-        #else not implemented!
-        '''
         
         file.write("stop thickness "+str(thickness)+" parsec linear \n")
     
@@ -310,42 +279,66 @@ class CloudyObject(converter.CloudyToSkirt):
         if my_dict['Grains']['DTG']:
             file.write('''save grain D/G ratio "grainDTG_zone'''+str(zone)+str(output_ext)+'''" last units nm \n''')
     
-    ### PARSE DATA ###
+    ### PARSE DATA ### 
+    def __fillGeometry(self,data):
+        #data = ['type',params]
+        #Because data would be a string and I want a list, something else needs to be done first
+        true_data = relist(data)
+        self._geometry.append(true_data)
+    def __fillSED(self,data):
+        #data = filename
+        self._sedFiles.append(data)
+    def __fillMass(self,data):
+        #data = float
+        self._param_mass.append(float(data))
+    def __fillnH(self,data):
+        self._param_nH.append(float(data))
+    #Optional parameters
+    def __fillHe(self,data):
+        self._param_Y.append(float(data) if data != None else None)
+    def __fillZ(self,data):
+        self._param_Z.append(float(data) if data != None else None)
+    def __fillDTG(self,data):
+        self._param_DTG.append(float(data) if data != None else None)
     
-    def __chemistryOption(self,argument):
-        self._param_chemistry = argument
     
-    def __dustOption(self,argument):
-        self._param_dust = argument
+    def __fillUnfilled(self):
+        if len(self._param_Y) == 0:
+            for zone in range(0,self._n_zones):
+                self._fillHe(None)
+        if len(self._param_Z) == 0:
+            for zone in range(0,self._n_zones):
+                self._fillZ(None)
+        if len(self._param_DTG) == 0:
+            for zone in range(0,self._n_zones):
+                self._fillDTG(None)
     
-    def __OptionsSwitch(self,option,argument):
-        # I would like to construct a dictionary for the switch statement, but I was unable to =/
-        if option=='geometry':
-            if argument == 'shell':
-                self._param_geometry = 'shell'
-            elif argument == 'ring':
-                self._param_geometry = 'ring'
-            else:
-                raise RuntimeError("Geometry option not found!")
-        elif option == 'chemistry':
-            if argument == 'abundancesism': #remember I used lower() before calling this function...
-                self._param_chemistry = 'abundances ism'
-            elif argument == 'metals':
-                self._param_chemistry = 'metals'
-            else:
-                raise RuntimeError("Chemistry option not found!")
-        elif option == 'dust':
-            if argument == 'no' or argument == 'false':
-                self._param_dust = False
-            elif argument == 'grainsism':
-                self._param_dust = 'grains ism'
-            elif argument == 'dusttogas':
-                self._param_dust = 'dust to gas'
-            else:
-                raise RuntimeError("Dust option not found!")
+    def __fillData(self,key,data):
+        #This expands the list self._header_order
+        
+        switch = {
+            #Geometry
+            'geometry': self.__fillGeometry,
+            #Output
+            'sedfile': self.__fillSED,
+            'outputfile': self.__fillSED,
+            #Chemistry-Mandatory
+            'mass': self.__fillMass,
+            'hydrogendensity': self.__fillnH,
+            #Chemistry-Other (if some parameters are lacking, it will use default options)
+            'hellium': self.__fillHe,
+            'metallicity': self.__fillZ,
+            #Dust (optional, it not given, it'll take 'grains ism' option)
+            #Give '0' or negative number to disable dust
+            'dusttogas': self.__fillDTG,
+            'dust-to-gas': self.__fillDTG
+            }
+        #Do
+        switch[key](data)
     
     def __parseData(self,file_path):
         file = open(file_path,'r')
+        header = []
         
         #Read the file
         while True:
@@ -353,57 +346,22 @@ class CloudyObject(converter.CloudyToSkirt):
             if not line: break #EoF
             line_data = line.split()
             
-            if line_data[0] == '#' and line_data[1].lower() != 'column':
-                #parse options
-                #line for parsing is '# geometry : shell', for example
-                option = line_data[1].lower() # 'geometry','chemistry','dust'... lower() is to remove uppercases
-                argument = line_data[3].lower()
+            if line_data[0] == '#': 
+                #I should expect: '# Column X : Key (units)
+                header.append(line_data[4].lower())
                 
-                self.__OptionsSwitch(option, argument) #self._param_whatever are initialized here
-            elif line_data[0] == '#': 
-                continue
             else:
+                #I should expect: data1 data2 data3 data4 ...
                 #Get relevant data
-                #Column 1 is always the sed file
-                self._sedFiles.append(line_data[0])
-                #Column 2 is always the mass of the cloud, in solar masses
-                self._param_mass.append(float(line_data[1]))
-                #Column 3 is always the hydrogen density of the cloudy, in cm-3
-                self._param_nH.append(float(line_data[2]))
-                
-                #Now the variable columns
-                col = 3
-                ## Geometry related columns
-                if self._param_geometry == 'shell':
-                    self._param_minRadius.append(float(line_data[col]))
-                    self._param_maxRadius.append(float(line_data[col+1]))
-                    col += 2
-                elif self._param_geometry == 'ring':
-                    self._param_ringRadius.append(float(line_data[col]))
-                    self._param_ringWidth.append(float(line_data[col+1]))
-                    self._param_ringHeight.append(float(line_data[col+2]))
-                    col += 3
-                #else not implemented, but the error should raise in 'self.__OptionsSwitch'
-                
-                ## Chemistry related columns
-                if self._param_chemistry == 'abundances ism':
-                    pass #really, add nothing!
-                elif self._param_chemistry == 'metals':
-                    self._param_Y.append(float(line_data[col]))
-                    self._param_Z.append(float(line_data[col+1]))
-                    col += 2
-                #else not implemented
-                
-                ## Dust related columns
-                if self._param_dust == False or self._param_dust == 'grains ism':
-                    pass #really, no new columns!
-                elif self._param_dust == 'dust to gas':
-                    self._param_DTG.append(float(line_data[col]))
-                    col +=1
+                for i in range(0,len(header)):
+                    self.__fillData(header[i], line_data[i])
                     
-        
+              
         #And the final param
         self._n_zones = len(self._sedFiles)
+        #Unfilled parameters remain as '[]', giving len = 0. 
+        #Nevertheless, I will fill with 'None', to make handling with these options easier
+        self.__fillUnfilled()
         
         file.close()
     
@@ -465,32 +423,47 @@ class CloudyObject(converter.CloudyToSkirt):
     ### DEBUG ###
     
     def showParams(self):
-        print("Main parameters:")
         print("-Number of zones : "+str(self._n_zones))
-        print("-Geometry option : "+str(self._param_geometry))
-        print("-Chemistry option : "+str(self._param_chemistry))
-        print("-Dust option : "+str(self._param_dust))
-        print("-Zone mass : "+str(self._param_mass)+" Msun")
-        print("-Zone Hydrogen density : "+str(self._param_nH)+" cm-3 \n")
         
         print("Wavelength parameters:")
         print("-Wavelength range : "+str(self._wavelength_min)+" to "+str(self._wavelength_max)+" nm")
         print("-Wavelength resolution : "+str(self._wavelength_res))
         print("-Wavelength of reference : "+str(self._wavelength_norm)+" nm \n")
         
-        print("Next two lines are filled if geometry is 'shell': ")
-        print("-Min radius of zones : "+str(self._param_minRadius)+" pc")
-        print("-Max radius of zones : "+str(self._param_maxRadius)+" pc \n")
+        print("Each zone data:")
+        for i in range(0,self._n_zones):
+            print("---ZONE "+str(i)+"---")
+            geometry_type = self._geometry[i][0]
+            print("Geometry : "+geometry_type)
+            if geometry_type == 'shell':
+                print("-Inner radius : "+str(self._geometry[i][1])+" pc")
+                print("-Outer radius : "+str(self._geometry[i][2])+" pc")
+            elif geometry_type == 'ring':
+                print("-Ring radius : "+str(self._geometry[i][1])+" pc")
+                print("-Ring width  : "+str(self._geometry[i][2])+" pc")
+                print("-Ring height : "+str(self._geometry[i][3])+" pc")
+            
+            print("Hydrogen density : "+str(self._param_nH[i])+" cm-3")
+            print("Total mass       : "+str(self._param_mass[i])+" Msun")
+            Y = self._param_Y[i]
+            if Y != None:
+                print("Hellium fraction : "+str(Y))
+            else:
+                print("Hellium fraction : Not specified")
+            Z = self._param_Z[i]
+            if Y != None:
+                print("Metallicity      : "+str(Z))
+            else:
+                print("Metallicity      : Not specified")
+            
+            DTG = self._param_DTG[i]
+            if DTG != None and DTG > 0.0:
+                print("Dust-to-gas      : "+str(DTG))
+            elif DTG == None:
+                print("Dust-to-gas      : Not specified")
+            else:
+                print("Dust-to-gas      : Not included")
+            
         
-        print("Next three lines are filled if geometry is 'ring': ")
-        print("-Radius of each ring zone : "+str(self._param_ringRadius)+" pc")
-        print("-Ring width of each zone : "+str(self._param_ringWidth)+" pc")
-        print("-Ring heigth of each zone : "+str(self._param_ringHeight)+" pc")
         
-        #Work in progress, for now there are not extra chemistry or dust options!
-        if self._param_chemistry != 'abundances ism':
-            print("Chemistry parameters:")
-            print("-Metalicity : "+str(self._param_Z))
-        if self._param_dust == 'dust to gas':
-            print("Dust paramaters:")
-            print("-Dust to gas ratio : "+str(self._param_DTG))
+    
