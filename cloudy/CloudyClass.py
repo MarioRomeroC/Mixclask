@@ -9,7 +9,7 @@ Mario Romero            July 2021
 
 import os
 #import glob
-from cloudy.unkeep import relist
+from utils.unkeep import relist
 import cloudy.ConverterMethods as converter
 #import src.ParserClass as parser
 import numpy as np
@@ -364,6 +364,11 @@ class CloudyObject(converter.CloudyToSkirt):
         self.__fillUnfilled()
         
         file.close()
+    
+    ### GIVE SOMETHING ###
+    
+    def giveSEDfiles(self):
+        return self._sedFiles
     
     ### ERROR HANDLING ###       
     

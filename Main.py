@@ -4,9 +4,10 @@
 import cloudy.CloudyClass as cc #class with all methods needed to operate with cloudy
 from skirt import pigs #source code that generates the .ski file
 from skirt.ski_params import SkiParams #class that contains all the data to generate the .ski file
+import utils.convergence as conv
+from utils.unkeep import move #utility functions
 import os
 import time
-from cloudy.unkeep import move #utility functions
 
 # Where are the gas and star parameters starting from this folder?
 gas_params  = 'input_data/params/Your_gas_file.dat'
@@ -22,7 +23,8 @@ WavelengthOptions = {
     'normalization': 1.0e7, #nm
     'maxWavelength':1.0e9, #nm
     'minWavelength':0.1, #nm
-    'resolution':200
+    'resolution':200,
+    'convWavelength':150e3 #nm #Convergence wavelength
     }
 
 #These outputs are useful for diagnostics, they are not needed for this code to work properly
@@ -44,17 +46,20 @@ ExtraCloudyOutputs = {
 # Some technical parameters
 cloudy_path = '/path/to/your/cloudy/exe'
 show_cloudy_params = False
-last_iteration = 0 #Useful for tracking the number of iteration if 'is_iteration0=False'
-n_iterations = 3
+#last_iteration = 0 #(DEPRECIATED) Useful for tracking the number of iteration if 'is_iteration0=False'
+n_iterations = 6
 n_threads = 4
+tolerance = 0.1 #For convergence.
 
 ### MAIN ROUTINE ###
 
 t_start = time.time()
 cloudy = cc.CloudyObject(gas_params,cloudy_path,WavelengthOptions)
 skirt_params = SkiParams(gas_params,star_params,meanIntensity_positions,WavelengthOptions)
+program = conv.ConvergenceObject(cloudy.giveSEDfiles(),WavelengthOptions['convWavelength'],n_iterations,tolerance)
+
 #cloudy.showParams()
-#raise
+
 ### ITERATION 0 ###
 if is_iteration0:
     last_iteration = 0
@@ -72,16 +77,14 @@ if is_iteration0:
     os.system("mv *.ski -t "+folder)
 
 ### FOLLOWING ITERATIONS ###
-for it in range(1,n_iterations+1):
+t_it = time.time()
+#for it in range(1,n_iterations+1):
+while(not program.stop()):
     # =============================================================================
     # Create cloudy
     # =============================================================================
     
-    folder = "iteration"+str(it+last_iteration)
-    
-    t_it = time.time()
-    print("iteration "+str(it+last_iteration)+" ("+str(t_it-t_start)+" s):")
-    
+    folder = "iteration"+str(program.iteration(t_it-t_start))
     
     cloudy.make_input(ExtraCloudyOutputs)
     
@@ -120,7 +123,7 @@ for it in range(1,n_iterations+1):
     os.system("cp *.sed -t "+folder) #copy because I need these files in the root folder
     os.system("mv *.ski -t "+folder)
     
-    
+    t_it = time.time()
     
     
 # iteration0 -> while[skirt -> conversion1 -> cloudy -> conversion2 -> check convergence -> skirt]
