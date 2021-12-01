@@ -334,6 +334,7 @@ class SkiParams(object):
                                                 
                                             'sed':{ 'type':'SED',
                                                 'FileSED':{'filename':[star_file_ii]},
+                                                },
                                             'normalization':{
                                                 'type':'LuminosityNormalization',
                                                 'SpecificLuminosityNormalization':{
@@ -343,7 +344,6 @@ class SkiParams(object):
                                                     }
                                                 }
                                             }
-                                        }
             else:
                 raise RuntimeError("This message should have not appeared!")
         

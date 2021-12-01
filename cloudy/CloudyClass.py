@@ -305,13 +305,13 @@ class CloudyObject(converter.CloudyToSkirt):
     def __fillUnfilled(self):
         if len(self._param_Y) == 0:
             for zone in range(0,self._n_zones):
-                self._fillHe(None)
+                self.__fillHe(None)
         if len(self._param_Z) == 0:
             for zone in range(0,self._n_zones):
-                self._fillZ(None)
+                self.__fillZ(None)
         if len(self._param_DTG) == 0:
             for zone in range(0,self._n_zones):
-                self._fillDTG(None)
+                self.__fillDTG(None)
     
     def __fillData(self,key,data):
         #This expands the list self._header_order
