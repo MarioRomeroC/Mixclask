@@ -16,7 +16,8 @@ import numpy as np
 
 class CloudyObject(converter.CloudyToSkirt):
     def __init__(self,params_path,cloudy_path,wavelength_dict):
-        self.__initParams()
+        self.__initEsential()
+        self.__initChemistry()
         self.__initWavelengths(wavelength_dict)
         self.__parseData(params_path)
         self.__ExePath = cloudy_path
@@ -27,7 +28,7 @@ class CloudyObject(converter.CloudyToSkirt):
     
     ### INITIALIZATION
     
-    def __initParams(self):
+    def __initEsential(self):
         
         #Mandatory
         self._sedFiles = []
@@ -35,26 +36,87 @@ class CloudyObject(converter.CloudyToSkirt):
         self._param_nH = []
         self._n_zones = None
         
-        #Chemistry and dust
-        self._param_Y   = [] #He fraction
-        self._param_Z   = [] #Metalicity
-        self._param_DTG = [] #Dust-to-gas
-        
         #Geometry-dependend (not all of them are filled by run)
         self._geometry = [] #Each element of this list contains [Geometry-Type,params]
         #^^For example, [['ring',3,0.5,0.2],['shell',3.5,4.5]] indicates that first zone is a ring with their params, and second zone a shell with their params
         
         
+    def __initChemistry(self):
+        '''
+        There are three layers of complexity:
+        (1)    If helium abundance is not set (self._param_Y[zone] = None),
+               I know that you are using the predefined cloudy options, where 
+               you don't need any abundance.
+        (2)    If metals abundance is set, He must be given as well, so
+               I know that you aren't giving specific metals abundances.
+        (3)    If metals abundances are set to None, but He is given, you are
+               using specific abundances.
+        As you noted, giving the metallicity have preference over custom abundances.
+        '''
         
+        #'metallicity' needs He (mass) fraction and metallicity to work
+        self._param_X   = [] #H fraction (is computed from other params here)
+        self._param_Y   = [] #He fraction
+        self._param_Z   = [] #Metalicity
+        
+        #'custom' opens all elements modelled in cloudy (from He to Zn)
+        #'Symbol':{'name':name,'A':mass number,'abundance':mass_fraction}
+        self._param_element = {
+            'H':{'name':'hydrogen','A':1.01,'abundance': self._param_X},
+            'He':{'name':'helium','A':4.00,'abundance':self._param_Y},
+            'Li':{'name':'lithium','A':6.96,'abundance':[]},
+            'Be':{'name':'beryllium','A':9.01,'abundance':[]},
+            'B':{'name':'boron','A':10.8,'abundance':[]},
+            'C':{'name':'carbon','A':12.0,'abundance':[]},
+            'N':{'name':'nitrogen','A':14.0,'abundance':[]},
+            'O':{'name':'oxygen','A':16.0,'abundance':[]},
+            'F':{'name':'flourine','A':19.0,'abundance':[]},
+            'Ne':{'name':'neon','A':20.2,'abundance':[]},
+            'Na':{'name':'sodium','A':23.0,'abundance':[]},
+            'Mg':{'name':'magnesium','A':24.3,'abundance':[]},
+            'Al':{'name':'aluminium','A':27.0,'abundance':[]},
+            'Si':{'name':'silicon','A':28.1,'abundance':[]},
+            'P':{'name':'phosphorus','A':31.0,'abundance':[]},
+            'S':{'name':'sulphur','A':32.1,'abundance':[]}, #'surfur' is the accepted name, but cloudy uses 'ph'
+            'Cl':{'name':'chlorine','A':35.5,'abundance':[]},
+            'Ar':{'name':'argon','A':40.0,'abundance':[]},
+            'K':{'name':'potassium','A':39.1,'abundance':[]},
+            'Ca':{'name':'calcium','A':40.1,'abundance':[]},
+            'Sc':{'name':'scandium','A':45.0,'abundance':[]},
+            'Ti':{'name':'titanium','A':47.9,'abundance':[]},
+            'V':{'name':'vanadium','A':50.9,'abundance':[]},
+            'Cr':{'name':'chromium','A':52.0,'abundance':[]},
+            'Mn':{'name':'manganese','A':54.3,'abundance':[]},
+            'Fe':{'name':'iron','A':55.8,'abundance':[]},
+            'Co':{'name':'cobalt','A':58.9,'abundance':[]},
+            'Ni':{'name':'nickel','A':58.7,'abundance':[]},
+            'Cu':{'name':'copper','A':63.5,'abundance':[]},
+            'Zn':{'name':'zinc','A':65.4,'abundance':[]},
+            'Z':{'name':'metals','abundance':self._param_Z}
+            }
+        
+        
+        #Dust parameters
+        self._param_DTG = [] #Dust-to-gas
+        
+   
     def __initWavelengths(self,wavelength_dict):
         self._wavelength_max  = wavelength_dict['maxWavelength']
         self._wavelength_min  = wavelength_dict['minWavelength']
         self._wavelength_norm = wavelength_dict['normalization']
         self._wavelength_res  = wavelength_dict['resolution']
     
+    def __massNumbersArray(self):
+        result = []
+        for symbol in self._param_element:
+            if symbol != 'Z':
+                A = self._param_element[symbol]['A']
+                result.append(A)
+        return np.array(result)
+    
     def __defineConstants(self):
         #Mass number of elements from H to Zn
-        self.Ai   = np.array([1.0, 4.0, 6.9, 9.0, 11., 12., 14., 16., 19., 20., 23., 24., 27., 28., 31., 32., 35., 40., 39., 40., 45., 48., 51., 52., 55., 56., 59., 59., 64., 65.])
+        self.Ai   = self.__massNumbersArray()
         #Physical constants
         self.mH   = 1.67353e-24    #g [Hydrogen mass]
         self.pc   = 3.08568e18     #cm
@@ -68,7 +130,7 @@ class CloudyObject(converter.CloudyToSkirt):
     def __initDetails(self):
         #This option is used for debug purposes only
         self._use_intensity_command_in_cloudy = False #This will use intensity X at range instead of nuf(nu) Y at Z
-        #Default parameters
+        #Default parameters when metallicity is given
         '''
         These parameters are taken with a cloudy run with these commands:
             abundances gass
@@ -82,17 +144,17 @@ class CloudyObject(converter.CloudyToSkirt):
         self._cloudy_default_Y   = 0.25057390087996967 #He abundance by default
         self._cloudy_default_Z   = 0.0134294404311891 #metals abundance by default
         self._cloudy_default_DTG = 0.006606 #dust-to-gas ratio scales with this number. Includes grains and pah
+        #Default options when specific (metal) abundances are given
+        self._cloudy_fill_notGivenMetals = True #If true, elements not given will use 'abundances gass' value, and overwrite the values given
         
         #PAH options
         self._enable_PAH = True
         self._disable_qheat = False #If true, you won't see the usual pattern that pah make in the spectrum, but cloudy is somewhat more stable.
         self._cloudy_default_qpah = 0.003962761126248864 #This is M_PAH/M_dust, or Pah-to-gas/dust-to-gas, assuming the same cloudy run as above.
-        self._forced_qpah = 0.05 #Default value of qpah is too low compared with observational measures, which give about an order of magnitude higher (see figure 9 of Galliano+17) 
+        self._forced_qpah = 0.07 #Cloudy default value of qpah is too low compared with observational measures, which give about an order of magnitude higher (see figure 9 of Galliano+17) 
                                 #Although this will be expanded as future work.
         #Cosmic rays
         self._use_cosmic_rays_background = True #If false and cloudy encounters molecular gas, it may crash
-        #CMB
-        self._use_CMB = False
         
         '''
         Known bug: If you give a table with too many significant digits to cloudy,
@@ -203,10 +265,10 @@ class CloudyObject(converter.CloudyToSkirt):
         
         if self._param_Y[zone] == None: #Default options
             file.write("abundaces ism no grains \n")
-            __writeDust()
+           # __writeDust()
             
-        else:
-            #if Z is given but not specific metals
+        elif self._param_Z[zone] != None:
+            #metallicity is given AND TAKES PREFERENCE over custom abundances
             #first, use solar abundances (see table 7.4 of cloudy hazy 1)
             #THESE ABUNDANCES DOES NOT ADD GRAINS (see table 7.2 of cloudy hazy 1)
             file.write("abundances gass \n")
@@ -216,8 +278,26 @@ class CloudyObject(converter.CloudyToSkirt):
             #Metal content
             scale_Z = self._param_Z[zone]/self._cloudy_default_Z
             file.write("metals "+str(scale_Z)+" \n")
-            
-            __writeDust()
+        
+        else: #You gave custom abundances
+            if self._cloudy_fill_notGivenMetals:
+                file.write("abundances gass \n") #Elements given will overwrite these values
+            else:
+                file.write("abundances all -20 \n") #Elements NOT given will be negligible
+            #Now set each element
+            H_mass_fraction = self._param_element['H']['abundance'][zone]
+            for symbol in self._param_element:
+                elem_name = self._param_element[symbol]['name']
+                elem_mass_fraction = self._param_element[symbol]['abundance'][zone]
+                mass_number = self._param_element[symbol]['A']
+                if symbol!='H' and elem_mass_fraction != None and symbol!='Z':
+                    #None = not given
+                    elem_relative_to_H = elem_mass_fraction / ( H_mass_fraction*mass_number )
+                    value = np.log10(elem_relative_to_H)
+                    file.write("element "+elem_name+" absolute "+str(value)+" \n")
+                
+        
+        __writeDust()
             
         
         
@@ -242,9 +322,6 @@ class CloudyObject(converter.CloudyToSkirt):
                 outfile.write(line)
                 break
         sedfile.close()
-        
-        if self._use_CMB:
-            outfile.write("CMB \n")
     
     def __writeGeometry(self,file,zone):
         file.write("## GEOMETRY \n")
@@ -298,17 +375,22 @@ class CloudyObject(converter.CloudyToSkirt):
         self._param_Y.append(float(data) if data != None else None)
     def __fillZ(self,data):
         self._param_Z.append(float(data) if data != None else None)
+    #Chemistry parameters
+    def __fillElemen(self,symbol,data):
+        self._param_element[symbol]['abundance'].append(float(data) if data != None else None)
+    
+    #Dust parameters (optional)
     def __fillDTG(self,data):
         self._param_DTG.append(float(data) if data != None else None)
     
     
     def __fillUnfilled(self):
-        if len(self._param_Y) == 0:
-            for zone in range(0,self._n_zones):
-                self.__fillHe(None)
-        if len(self._param_Z) == 0:
-            for zone in range(0,self._n_zones):
-                self.__fillZ(None)
+        #Chemical elements
+        for symbol in self._param_element:
+            if len(self._param_element[symbol]['abundance']) == 0:
+                for zone in range(0,self._n_zones):
+                    self.__fillElemen(symbol, None)
+        #Dust
         if len(self._param_DTG) == 0:
             for zone in range(0,self._n_zones):
                 self.__fillDTG(None)
@@ -325,16 +407,49 @@ class CloudyObject(converter.CloudyToSkirt):
             #Chemistry-Mandatory
             'mass': self.__fillMass,
             'hydrogendensity': self.__fillnH,
-            #Chemistry-Other (if some parameters are lacking, it will use default options)
+            #Chemistry-Basic (if some parameters are lacking, it will use default options)
             'hellium': self.__fillHe,
             'metallicity': self.__fillZ,
+            #Chemistry-Custom
+            'lithium':'Li',
+            'beryllium':'Be',
+            'boron':'B',
+            'carbon':'C',
+            'nitrogen':'N',
+            'oxygen':'O',
+            'flourine':'F',
+            'neon':'Ne',
+            'sodium':'Na',
+            'magnesium':'Mg',
+            'aluminium':'Al',
+            'silicon':'Si',
+            'phosphorus':'P',
+            'sulphur':'S',
+            'sulfur':'S', #Both words are correct for this element
+            'chorine':'Cl',
+            'argon':'Ar',
+            'potassium':'K',
+            'calcium':'Ca',
+            'scandium':'Sc',
+            'titanium':'Ti',
+            'vanadium':'V',
+            'chromium':'Cr',
+            'manganese':'Mn',
+            'iron':'Fe',
+            'cobalt':'Co',
+            'nickel':'Ni',
+            'copper':'Cu',
+            'zinc':'Zn',
             #Dust (optional, it not given, it'll take 'grains ism' option)
             #Give '0' or negative number to disable dust
             'dusttogas': self.__fillDTG,
             'dust-to-gas': self.__fillDTG
             }
         #Do
-        switch[key](data)
+        if isinstance(switch[key],str):
+            self.__fillElemen(switch[key], data)
+        else: #I'm a function
+            switch[key](data)
     
     def __parseData(self,file_path):
         file = open(file_path,'r')
@@ -362,6 +477,10 @@ class CloudyObject(converter.CloudyToSkirt):
         #Unfilled parameters remain as '[]', giving len = 0. 
         #Nevertheless, I will fill with 'None', to make handling with these options easier
         self.__fillUnfilled()
+        
+        #And compute Hydrogen fraction
+        for i in range(0,self._n_zones):
+            self._param_element['H']['abundance'][i] = self._computeHydrogenFraction(i)
         
         file.close()
     

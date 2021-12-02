@@ -152,7 +152,29 @@ class CloudyToSkirt(object): #I need read_config
             return self._geometry[zone][2]
         else:
             raise RuntimeError("Geometry not implemented!")
+    
+    def _computeMetallicity(self,zone):
+        #This function is useful in case you give particular elements (C,N,O,...)
+        if self._param_element['Z']['abundance'][zone] != None:
+            Z = 0.0
+            for symbol in self._param_element:
+                if symbol != 'H' and symbol != 'He' and symbol != 'Z':
+                    Xi = self._param_element[symbol]['abundance'][zone]
+                    if Xi != None:
+                        Z += Xi
+            return Z
+        else:
+            return self._param_element['Z']['abundance'][zone]            
         
+    def _computeHydrogenFraction(self,zone):
+        X = None
+        if self._param_element['He']['abundance'][zone] != None: #You gave Z or particular elements
+            if self._param_element['Z']['abundance'][zone] != None: #You gave particular elements
+                X = 1.0 - self._param_element['He']['abundance'][zone] - self._computeMetallicity(zone)
+            else: #You gave metals
+                X = 1.0 - self._param_element['He']['abundance'][zone] - self._param_element['Z']['abundance'][zone]
+        return X
+    
     def _writeSourceHeader(self,filename,wv,L):
         #filename.write("# Specific luminosity of this gas \n")
         filename.write("# Column 1: wavelength (nm) \n")

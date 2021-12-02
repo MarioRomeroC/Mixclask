@@ -101,7 +101,6 @@ class SkiParams(object):
         #Iteration0 options
         self._nullMaterialFile = 'input_data/params/NullMaterial.stab' #Skirt will use this file as 'material' in the iteration0 (should be a material without absorption and scattering)
         self._nullMass = 1.0e-10 #Msun. Normalization of 'NullMaterial'. The ideal value is 0.0, but I selected a small number because skirt will not run instead
-
     
     def __deduceLimits(self):
         #limits are decided with gas zones.
@@ -119,6 +118,27 @@ class SkiParams(object):
             else:
                 raise RuntimeError("Geometry not implemented!")
             
+            if Rcan > R_max:
+                R_max = Rcan
+            if zcan > z_max:
+                z_max = zcan
+        
+        for ii in range(0,self._star_zones):
+            Rcan = None
+            if self._star_geometry[ii][0] == 'shell':
+                Rcan = self._star_geometry[ii][2] #Rout
+                zcan = Rcan #Spherical symmetry!
+            elif self._star_geometry[ii][0] == 'ring':
+                Rcan = self._star_geometry[ii][1] + self._gas_geometry[ii][2] #R+w
+                zcan = self._star_geometry[ii][3]*self._z_ring_limit #h*self._z_ring_limit
+            elif self._star_geometry[ii][0] == 'point':
+                x = self._star_geometry[ii][1]
+                y = self._star_geometry[ii][2]
+                z = self._star_geometry[ii][3]
+                
+                Rcan = np.sqrt(x*x+y*y+z*z)
+                zcan = z
+        
             if Rcan > R_max:
                 R_max = Rcan
             if zcan > z_max:
