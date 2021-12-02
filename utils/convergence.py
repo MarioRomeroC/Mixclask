@@ -50,7 +50,8 @@ class ConvergenceObject(object):
             curr_result = unk.RMSD(self.__prev_values,curr_values) #root mean squared deviation
             error = None
             if self.__prev_result != None:
-                error = abs(curr_result-self.__prev_result)/self.__prev_result
+                diff  = abs(curr_result-self.__prev_result)
+                error = (diff/self.__prev_result) if diff != 0.0 else 0.0 #To avoid a (0-0)/0 = nan and so never converges
             else:
                 error = self.tolerance*1000.0 #1000.0 because potato, I only want to force next 'else' sentence
             #print(error) #Debug
