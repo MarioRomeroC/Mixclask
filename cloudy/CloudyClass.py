@@ -97,7 +97,8 @@ class CloudyObject(converter.CloudyToSkirt):
         
         
         #Dust parameters
-        self._param_DTG = [] #Dust-to-gas
+        self._param_DTG  = [] #Dust-to-gas
+        self._param_qpah = [] #Pah-to-dust 
         
    
     def __initWavelengths(self,wavelength_dict):
@@ -148,7 +149,6 @@ class CloudyObject(converter.CloudyToSkirt):
         self._cloudy_fill_notGivenMetals = True #If true, elements not given will use 'abundances gass' value, and overwrite the values given
         
         #PAH options
-        self._enable_PAH = True
         self._disable_qheat = False #If true, you won't see the usual pattern that pah make in the spectrum, but cloudy is somewhat more stable.
         self._cloudy_default_qpah = 0.003962761126248864 #This is M_PAH/M_dust, or Pah-to-gas/dust-to-gas, assuming the same cloudy run as above.
         self._forced_qpah = 0.07 #Cloudy default value of qpah is too low compared with observational measures, which give about an order of magnitude higher (see figure 9 of Galliano+17) 
@@ -236,8 +236,8 @@ class CloudyObject(converter.CloudyToSkirt):
                 '''
                 file.write("grains ism ") #It's the default, 'grains' does the same
                 grains_scale = self._param_DTG[zone]/self._cloudy_default_DTG #This is the DTG from the '''
-                if self._enable_PAH:
-                    grains_scale *= (1.0-self._forced_qpah)
+                if self._param_qpah[zone] != None and self._param_qpah > 0.0:
+                    grains_scale *= (1.0-self._param_qpah[zone])
                 file.write(str(grains_scale))
                 if no_qheat:
                     file.write(" no qheat \n")
@@ -245,9 +245,9 @@ class CloudyObject(converter.CloudyToSkirt):
                     file.write(" \n")
                 
                 #PAH
-                if self._enable_PAH: #Repeated for legibility
+                if self._param_qpah[zone] != None and self._param_qpah > 0.0: #Repeated for legibility
                     file.write("grains pah ")
-                    pah_scale = self._forced_qpah/self._cloudy_default_qpah
+                    pah_scale = self._param_qpah[zone]/self._cloudy_default_qpah
                     pah_scale *= self._param_DTG[zone]/self._cloudy_default_DTG
                     file.write(str(pah_scale))
                     if no_qheat:
@@ -382,6 +382,8 @@ class CloudyObject(converter.CloudyToSkirt):
     #Dust parameters (optional)
     def __fillDTG(self,data):
         self._param_DTG.append(float(data) if data != None else None)
+    def __fillqPah(self,data):
+        self._param_qpah.append(float(data) if data != None else None)
     
     
     def __fillUnfilled(self):
@@ -394,6 +396,7 @@ class CloudyObject(converter.CloudyToSkirt):
         if len(self._param_DTG) == 0:
             for zone in range(0,self._n_zones):
                 self.__fillDTG(None)
+                self.__fillqPah(None)
     
     def __fillData(self,key,data):
         #This expands the list self._header_order
@@ -443,7 +446,10 @@ class CloudyObject(converter.CloudyToSkirt):
             #Dust (optional, it not given, it'll take 'grains ism' option)
             #Give '0' or negative number to disable dust
             'dusttogas': self.__fillDTG,
-            'dust-to-gas': self.__fillDTG
+            'dust-to-gas': self.__fillDTG,
+            'pah-to-dust': self.__fillqPah,
+            'pahtodust': self.__fillqPah,
+            'q_pah': self.__fillqPah
             }
         #Do
         if isinstance(switch[key],str):
