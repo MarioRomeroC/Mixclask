@@ -36,8 +36,8 @@ class ConvergenceObject(object):
         for ii in range(0,len(self.__sedFiles)):
             file = self.__sedFiles[ii]
             all_data = unk.readColumn(file,[0,1])
-            wavelengths  = all_data[:,0]
-            FourPi_nuJnu = all_data[:,1]
+            wavelengths  = np.flip(all_data[:,0])
+            FourPi_nuJnu = np.flip(all_data[:,1])
             
             #For now, I get the value at the target wavelength to check convergence.
             result[ii] = np.interp(desired_wl,wavelengths,FourPi_nuJnu)
@@ -49,6 +49,7 @@ class ConvergenceObject(object):
         return self.n_iterations
     
     def stop(self):
+        self.n_iterations += 1
         #First, check if we have reached max_iterations
         if self.n_iterations > self.__max_it:
             #Stop if maximum number of iteration has been reached
@@ -60,7 +61,7 @@ class ConvergenceObject(object):
         error = []
         for w in range(0,len(self.__target_wl)):
             curr_values_w = self.__compute_values(self.__target_wl[w]) #Here, we look for the value of 4pi*lambda*J_lambda at the wavelength
-            if all(elem != None for elem in self.__prev_values[w]): 
+            if all(elem == None for elem in self.__prev_values[w]): 
                 #We have not iterated before, so keep this result
                 #This happens for the iteration 0 (gas is not included yet)
                 convergence.append(False)
