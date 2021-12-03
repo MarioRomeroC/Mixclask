@@ -11,9 +11,11 @@ To run this test, enter in 'Main.py' and write in these lines:
 > star_params = 'input_data/params/BlackBody_star.dat'
 > meanIntensity_positions = 'input_data/MeanIntensity_Positions/BlackBody_positions.txt'
 Assuming that you have placed these files as told above.
-Next, you can tell the code if you are running from the beginning (iteration 0). This is the case, so keep 'is_iteration0 = True'.
 
-Now you can select in the "WavelengthOptions" dictionary your spectral resolution. For this test, you don't need to change these lines.
+Now you can select in the "WavelengthOptions" dictionary your spectral resolution. For this test, I recommend to change 'convWavelength' from 150e3 to [5.0,150e3].
+This option tells Mixclask what are the wavelengths where we test if the result obtained in a iteration converges.
+For this case, We choose 5 nm and 150 microns because we are interested in having gas absoption and dust emission, respectively, correct. 
+
 Finally, go to these lines:
 > # Some technical parameters
 > cloudy_path = '/path/to/your/cloudy/exe'
@@ -30,4 +32,4 @@ and change 'n_threads' to a lower value if you don't want to use a lot of CPUs.
 And that's all, run in terminal:
 > python3 Main.py
 (just 'python' for newer versions, or run with spyder) and wait to the results.
-This test in my laptop took about 6-10 hours.
+This test can take some hours to complete, between 10 to 20h.
