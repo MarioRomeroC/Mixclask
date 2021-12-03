@@ -24,6 +24,7 @@ class CloudyObject(converter.CloudyToSkirt):
         self.__defineConstants() #Needed for ConvertedMethods
         self.__initDetails()
         
+        self.__checkIssues()
         #self.showParams() #used for debug
     
     ### INITIALIZATION
@@ -149,6 +150,7 @@ class CloudyObject(converter.CloudyToSkirt):
         self._cloudy_fill_notGivenMetals = True #If true, elements not given will use 'abundances gass' value, and overwrite the values given
         
         #PAH options
+        self._enable_PAH = True #Enables pah for the pre-defined mode
         self._disable_qheat = False #If true, you won't see the usual pattern that pah make in the spectrum, but cloudy is somewhat more stable.
         self._cloudy_default_qpah = 0.003962761126248864 #This is M_PAH/M_dust, or Pah-to-gas/dust-to-gas, assuming the same cloudy run as above.
         self._forced_qpah = 0.07 #Cloudy default value of qpah is too low compared with observational measures, which give about an order of magnitude higher (see figure 9 of Galliano+17) 
@@ -551,6 +553,23 @@ class CloudyObject(converter.CloudyToSkirt):
             raise RuntimeError("Cloudy crashed in zone "+str(zone)+". Check "+filename+".out for more details.")
     
     ### DEBUG ###
+    def __checkIssues(self):
+        #This method revises if something odd is found.
+        for zone in range(0,self._n_zones):
+            if self._param_DTG[zone] != None and self._param_DTG[zone] < 0.0:
+                print("Warning: Negative dust-to-gas ratio in zone "+str(zone)+". Is this intended? I will ignore dust there")
+            if self._param_qpah[zone] != None and self._param_qpah[zone] < 0.0:
+                print("Warning: Negative pah-to-dust ratio (q_pah) in zone "+str(zone)+". Is this intended? I will ignore dust there")
+            for symbol in self._param_element:
+                if symbol == 'H' or symbol == 'He' or symbol == 'Z': 
+                    if self._param_element[symbol]['abundance'][zone] != None and self._param_element[symbol]['abundance'][zone] < 0.0:
+                        raise RuntimeError("Error: Negative "+symbol+" abundance. I cannot go on, revise your input.")
+                else:
+                    if self._param_element[symbol]['abundance'][zone] != None and self._param_element[symbol]['abundance'][zone] < 0.0:
+                        print("Warning: Negative "+symbol+" abundance in zone "+str(zone)+". Is this intended? I will ignore this abundance there")
+                        #I haven't write a elem_abundance <0.0 in the pertinent method, so I correct here
+                        self._param_element[symbol]['abundance'][zone] = None
+    
     
     def showParams(self):
         print("-Number of zones : "+str(self._n_zones))
