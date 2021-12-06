@@ -238,7 +238,7 @@ class CloudyObject(converter.CloudyToSkirt):
                 '''
                 file.write("grains ism ") #It's the default, 'grains' does the same
                 grains_scale = self._param_DTG[zone]/self._cloudy_default_DTG #This is the DTG from the '''
-                if self._param_qpah[zone] != None and self._param_qpah > 0.0:
+                if self._param_qpah[zone] != None and self._param_qpah[zone] > 0.0:
                     grains_scale *= (1.0-self._param_qpah[zone])
                 file.write(str(grains_scale))
                 if no_qheat:
@@ -247,7 +247,7 @@ class CloudyObject(converter.CloudyToSkirt):
                     file.write(" \n")
                 
                 #PAH
-                if self._param_qpah[zone] != None and self._param_qpah > 0.0: #Repeated for legibility
+                if self._param_qpah[zone] != None and self._param_qpah[zone] > 0.0: #Repeated for legibility
                     file.write("grains pah ")
                     pah_scale = self._param_qpah[zone]/self._cloudy_default_qpah
                     pah_scale *= self._param_DTG[zone]/self._cloudy_default_DTG
