@@ -292,7 +292,8 @@ class CloudyToSkirt(object): #I need read_config
                 fluxfile = open(outputfiles[i],'w')
             else:
                 #W.I.P. Change 'extra' for the same name as outputfiles, but with the different R
-                fluxfile = open("extra_"+str(R)+"pc.sed",'w')
+                r = np.sqrt(x[i]*x[i] + y[i]*y[i]) / 1000.0 #kpc
+                fluxfile = open("output_R"+str(r)+"_z"+str(z[i]/1000.0)+"kpc.sed",'w')
             #fluxfile.write("# nuFnu at "+str(R)+" pc \n")
             fluxfile.write("# column 1: wavelength (nm) \n")
             fluxfile.write("# column 2: 4pi*nu*J_nu (erg/cm2/s) \n")

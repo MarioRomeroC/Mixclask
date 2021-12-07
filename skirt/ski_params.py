@@ -97,7 +97,7 @@ class SkiParams(object):
         self._resolution_z = 200
         #Skirt cries if you use 'ring' geometry and place one at R = 0pc
         self._skirt_ringRadius_correction = 0.01 #pc
-        self._z_ring_limit = 5.0 #In case of all gas-zones are 'ring' geometry, The upper limit would be this number multiplied by the maximum height (h) found in all zones 
+        self._z_ring_limit = 10.0 #In case of all gas-zones are 'ring' geometry, The upper limit would be this number multiplied by the maximum height (h) found in all zones 
         #Iteration0 options
         self._nullMaterialFile = 'input_data/params/NullMaterial.stab' #Skirt will use this file as 'material' in the iteration0 (should be a material without absorption and scattering)
         self._nullMass = 1.0e-10 #Msun. Normalization of 'NullMaterial'. The ideal value is 0.0, but I selected a small number because skirt will not run instead
@@ -107,6 +107,7 @@ class SkiParams(object):
         #We first need to find the greater radius
         R_max = 0.0
         z_max = 0.0
+        
         for ii in range(0,self._gas_zones):
             Rcan = None
             if self._gas_geometry[ii][0] == 'shell':

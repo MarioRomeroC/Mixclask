@@ -104,6 +104,27 @@ def RMSD(old,new):
     RMSD = np.sqrt((sum((y-x)*(y-x)))/len(x) )
     return RMSD
 
+def integrate(x_lim,x,y):
+    #Integrate according to trapezoidal rule, len(x) = len(y)
+    #Unlike np.trapz, x is NOT the whole region of integration
+    x0 = x_lim[0]
+    y0 = np.interp(x0,x,y)
+    xf = x_lim[1]
+    yf = np.interp(xf,x,y)
+    
+    suma = 0.0
+    for i in range(1,len(x)):
+        if x[i-1] <= x0 and x0 < x[i]:
+            #Initial step
+            suma += 0.5*(x[i]-x0)*(y[i]+y0)
+        elif x0 <= x[i-1] and x[i] < xf:
+            suma += 0.5*(x[i]-x[i-1])*(y[i]+y[i-1])
+        elif x[i-1] <= xf and xf < x[i]:
+            #Last step
+            suma += 0.5*(xf-x[i-1])*(yf-y[i-1])
+    
+    return suma
+
 # =============================================================================
 # ROUTINES WITH FILES
 # =============================================================================    

@@ -30,19 +30,45 @@ class ConvergenceObject(object):
         #so:
         # self.__prev_values[wavelength][zone]
         # self.__prev_result[zone]
+    
+    def __readSEDfile(self,file):
+        #SEDfiles have their data sorted from highest wavelength to shortest. Numpy wants the opposite order, thus np.flip solves this issue
+        all_data = unk.readColumn(file,[0,1])
+        wavelengths  = np.flip(all_data[:,0])
+        FourPi_nuJnu = np.flip(all_data[:,1])
         
+        return wavelengths, FourPi_nuJnu
+    
     def __compute_values(self,desired_wl):
+        if isinstance(desired_wl,(tuple,list,np.ndarray)):
+            return self.__compute_integral(desired_wl)
+        else: #you gave a float
+            return self.__find_values(desired_wl)
+    
+    def __find_values(self,desired_wl):
+        #desired_wl is a FLOAT
         result = np.empty(len(self.__sedFiles))
         for ii in range(0,len(self.__sedFiles)):
-            file = self.__sedFiles[ii]
-            all_data = unk.readColumn(file,[0,1])
-            wavelengths  = np.flip(all_data[:,0])
-            FourPi_nuJnu = np.flip(all_data[:,1])
+            #file = self.__sedFiles[ii]
+            #all_data = unk.readColumn(file,[0,1])
+            #wavelengths  = np.flip(all_data[:,0])
+            #FourPi_nuJnu = np.flip(all_data[:,1])
+            wavelengths, FourPi_nuJnu = self.__readSEDfile(self.__sedFiles[ii])
             
             #For now, I get the value at the target wavelength to check convergence.
             result[ii] = np.interp(desired_wl,wavelengths,FourPi_nuJnu)
             
         return result
+    
+    def __compute_integral(self,desired_wl):
+        #desired_wl is a tuple/list -> (x[0],x[1])
+        result = np.empty(len(self.__sedFiles))
+        for ii in range(0,len(self.__sedFiles)):
+            wavelengths, FourPi_nuJnu = self.__readSEDfile(self.__sedFiles[ii])
+            result[ii] = unk.integrate(desired_wl,wavelengths,FourPi_nuJnu)
+        
+        return result[ii]
+            
     
     def iteration(self,time_elapsed):
         print("iteration "+str(self.n_iterations)+" ("+str(time_elapsed)+" s) :")
