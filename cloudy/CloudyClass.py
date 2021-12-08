@@ -292,12 +292,12 @@ class CloudyObject(converter.CloudyToSkirt):
             for symbol in self._param_element:
                 elem_name = self._param_element[symbol]['name']
                 elem_mass_fraction = self._param_element[symbol]['abundance'][zone]
-                mass_number = self._param_element[symbol]['A']
                 if symbol!='H' and elem_mass_fraction != None and symbol!='Z':
+                    mass_number = self._param_element[symbol]['A']
                     #None = not given
                     elem_relative_to_H = elem_mass_fraction / ( H_mass_fraction*mass_number )
                     value = np.log10(elem_relative_to_H)
-                    file.write("element "+elem_name+" absolute "+str(value)+" \n")
+                    file.write("element "+elem_name+" abundance "+str(value)+" \n")
                 
         
         __writeDust()
