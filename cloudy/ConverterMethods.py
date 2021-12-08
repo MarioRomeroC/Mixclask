@@ -151,28 +151,46 @@ class CloudyToSkirt(object): #I need read_config
             #thickness is the whole width of each zone
             return self._geometry[zone][2]
         else:
-            raise RuntimeError("Geometry not implemented!")
-    
-    def _computeMetallicity(self,zone):
-        #This function is useful in case you give particular elements (C,N,O,...)
-        if self._param_element['Z']['abundance'][zone] != None:
-            Z = 0.0
-            for symbol in self._param_element:
-                if symbol != 'H' and symbol != 'He' and symbol != 'Z':
-                    Xi = self._param_element[symbol]['abundance'][zone]
-                    if Xi != None:
-                        Z += Xi
-            return Z
-        else:
-            return self._param_element['Z']['abundance'][zone]            
+            raise RuntimeError("Geometry not implemented!")       
         
     def _computeHydrogenFraction(self,zone):
         X = None
         if self._param_element['He']['abundance'][zone] != None: #You gave Z or particular elements
-            if self._param_element['Z']['abundance'][zone] != None: #You gave particular elements
-                X = 1.0 - self._param_element['He']['abundance'][zone] - self._computeMetallicity(zone)
-            else: #You gave metals
+            if self._param_element['Z']['abundance'][zone] != None: #You gave metallicity
                 X = 1.0 - self._param_element['He']['abundance'][zone] - self._param_element['Z']['abundance'][zone]
+            else: #You gave partícular elements
+                '''
+                The computation is not that simple, in particular if self._cloudy_fill_notGivenMetals == True.
+                If it is the case, you are giving your own mass abundances (M_elem/M_gas) AND 'abundances gass' abundances for elements NOT GIVEN.
+                For the 'abundances gass', elements are given in table 7.4 of Hazy 1, and scripted in param_elem dictionary.
+                However, these values are given in N_elem/N_H, and it is not the format we are asking in the input.
+                
+                To compute X_H = M_H/M_gas, I will define here X_i= M_i/M_gas, and P_i = N_i/N_H.
+                On one hand, X_i is known for those elements you gave as input.
+                On the other hand, P_i is known for those element you DID NOT give as input (as they are default values).
+                Conversion between X and P is simple:
+                    P_i = X_i /(A_i * X_H) -> A_i = mass number
+                (Multiply and divide the definition of P_i by A_i*mH, and then do the same with M_gas)
+                Now, this must be true:
+                    1 = X_H + sum(X_i,known) + sum(X_j,unknown)
+                I divided the sum into known terms (you gave as input) and unknown terms (you did not).
+                Using the P_i formula above, you get:
+                    1 = X_H + sum(X_i,known) + X_H*sum(A_j*P_j,unknown)
+                Working a little, as P_j are default values taken from abundances gass...
+                    X_H = { 1 - sum(X_i,known) } / { 1 + sum(A_j*P_j, unknown) }
+                
+                If self._cloudy_fill_notGivenMetals == False, P_j = 0.0 so you have the intuitive solution.
+                '''
+                sum_Xknown = 0.0 #Mass fraction of GIVEN elements
+                sum_AjPj   = 0.0 #Ai*Pi, for the elements not given (in case we are using default values)
+                for symbol in self._param_element:
+                    if symbol != 'H' and symbol != 'Z':
+                        if self._param_element[symbol]['abundance'][zone] != None: #Given element
+                            sum_Xknown += self._param_element[symbol]['abundance'][zone]
+                        elif self._cloudy_fill_notGivenMetals: #Note that self._param_element[...] == None for previous if
+                            sum_AjPj += self._param_element[symbol]['A']*self._param_element[symbol]['defaultToH']
+                
+                X = ( 1.0 - sum_Xknown ) / ( 1.0 + sum_AjPj )
         return X
     
     def _writeSourceHeader(self,filename,wv,L):

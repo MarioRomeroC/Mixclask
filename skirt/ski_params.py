@@ -154,12 +154,12 @@ class SkiParams(object):
         radius_correction = 0.01 #self._geometry_units
         for ii in range(0,self._gas_zones):
             if self._gas_geometry[ii][0] == 'ring' and self._gas_geometry[ii][1] == 0.0:
-                self._gas_geometry[ii][1] == radius_correction
+                self._gas_geometry[ii][1] = radius_correction
         
         #Same issue with stars
         for ii in range(0,self._star_zones):
             if self._star_geometry[ii][0] == 'ring' and self._star_geometry[ii][1] == 0.0:
-                self._star_geometry[ii][1] == radius_correction
+                self._star_geometry[ii][1] = radius_correction
     
     ### PARSING DATA
     

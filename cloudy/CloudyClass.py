@@ -19,10 +19,10 @@ class CloudyObject(converter.CloudyToSkirt):
         self.__initEsential()
         self.__initChemistry()
         self.__initWavelengths(wavelength_dict)
+        self.__initDetails()
         self.__parseData(params_path)
         self.__ExePath = cloudy_path
         self.__defineConstants() #Needed for ConvertedMethods
-        self.__initDetails()
         
         self.__checkIssues()
         #self.showParams() #used for debug
@@ -61,38 +61,39 @@ class CloudyObject(converter.CloudyToSkirt):
         self._param_Z   = [] #Metalicity
         
         #'custom' opens all elements modelled in cloudy (from He to Zn)
-        #'Symbol':{'name':name,'A':mass number,'abundance':mass_fraction}
+        #'Symbol':{'name':name,'A':mass number,'defaultToH':N_i/N_H,'abundance':mass_fraction}
+        #'defaultToH' is the element fraction compared to H from table 7.4 of Hazy 1, it is used for default values
         self._param_element = {
-            'H':{'name':'hydrogen','A':1.01,'abundance': self._param_X},
-            'He':{'name':'helium','A':4.00,'abundance':self._param_Y},
-            'Li':{'name':'lithium','A':6.96,'abundance':[]},
-            'Be':{'name':'beryllium','A':9.01,'abundance':[]},
-            'B':{'name':'boron','A':10.8,'abundance':[]},
-            'C':{'name':'carbon','A':12.0,'abundance':[]},
-            'N':{'name':'nitrogen','A':14.0,'abundance':[]},
-            'O':{'name':'oxygen','A':16.0,'abundance':[]},
-            'F':{'name':'flourine','A':19.0,'abundance':[]},
-            'Ne':{'name':'neon','A':20.2,'abundance':[]},
-            'Na':{'name':'sodium','A':23.0,'abundance':[]},
-            'Mg':{'name':'magnesium','A':24.3,'abundance':[]},
-            'Al':{'name':'aluminium','A':27.0,'abundance':[]},
-            'Si':{'name':'silicon','A':28.1,'abundance':[]},
-            'P':{'name':'phosphorus','A':31.0,'abundance':[]},
-            'S':{'name':'sulphur','A':32.1,'abundance':[]}, #'surfur' is the accepted name, but cloudy uses 'ph'
-            'Cl':{'name':'chlorine','A':35.5,'abundance':[]},
-            'Ar':{'name':'argon','A':40.0,'abundance':[]},
-            'K':{'name':'potassium','A':39.1,'abundance':[]},
-            'Ca':{'name':'calcium','A':40.1,'abundance':[]},
-            'Sc':{'name':'scandium','A':45.0,'abundance':[]},
-            'Ti':{'name':'titanium','A':47.9,'abundance':[]},
-            'V':{'name':'vanadium','A':50.9,'abundance':[]},
-            'Cr':{'name':'chromium','A':52.0,'abundance':[]},
-            'Mn':{'name':'manganese','A':54.3,'abundance':[]},
-            'Fe':{'name':'iron','A':55.8,'abundance':[]},
-            'Co':{'name':'cobalt','A':58.9,'abundance':[]},
-            'Ni':{'name':'nickel','A':58.7,'abundance':[]},
-            'Cu':{'name':'copper','A':63.5,'abundance':[]},
-            'Zn':{'name':'zinc','A':65.4,'abundance':[]},
+            'H':{'name':'hydrogen','A':1.01,'defaultToH':1.0,'abundance': self._param_X},
+            'He':{'name':'helium','A':4.00,'defaultToH':8.51e-2,'abundance':self._param_Y},
+            'Li':{'name':'lithium','A':6.96,'defaultToH':1.12e-11,'abundance':[]},
+            'Be':{'name':'beryllium','A':9.01,'defaultToH':2.40e-11,'abundance':[]},
+            'B':{'name':'boron','A':10.8,'defaultToH':5.01e-10,'abundance':[]},
+            'C':{'name':'carbon','A':12.0,'defaultToH':2.69e-4,'abundance':[]},
+            'N':{'name':'nitrogen','A':14.0,'defaultToH':6.77e-5,'abundance':[]},
+            'O':{'name':'oxygen','A':16.0,'defaultToH':4.90e-4,'abundance':[]},
+            'F':{'name':'flourine','A':19.0,'defaultToH':3.63e-8,'abundance':[]},
+            'Ne':{'name':'neon','A':20.2,'defaultToH':8.51e-5,'abundance':[]},
+            'Na':{'name':'sodium','A':23.0,'defaultToH':1.74e-6,'abundance':[]},
+            'Mg':{'name':'magnesium','A':24.3,'defaultToH':3.98e-5,'abundance':[]},
+            'Al':{'name':'aluminium','A':27.0,'defaultToH':2.82e-6,'abundance':[]},
+            'Si':{'name':'silicon','A':28.1,'defaultToH':3.24e-5,'abundance':[]},
+            'P':{'name':'phosphorus','A':31.0,'defaultToH':2.57e-7,'abundance':[]},
+            'S':{'name':'sulphur','A':32.1,'defaultToH':1.32e-5,'abundance':[]}, #'surfur' is the accepted name, but cloudy uses 'ph'
+            'Cl':{'name':'chlorine','A':35.5,'defaultToH':3.16e-7,'abundance':[]},
+            'Ar':{'name':'argon','A':40.0,'defaultToH':2.51e-6,'abundance':[]},
+            'K':{'name':'potassium','A':39.1,'defaultToH':1.07e-7,'abundance':[]},
+            'Ca':{'name':'calcium','A':40.1,'defaultToH':2.19e-6,'abundance':[]},
+            'Sc':{'name':'scandium','A':45.0,'defaultToH':1.41e-9,'abundance':[]},
+            'Ti':{'name':'titanium','A':47.9,'defaultToH':8.91e-8,'abundance':[]},
+            'V':{'name':'vanadium','A':50.9,'defaultToH':8.51e-9,'abundance':[]},
+            'Cr':{'name':'chromium','A':52.0,'defaultToH':4.37e-7,'abundance':[]},
+            'Mn':{'name':'manganese','A':54.3,'defaultToH':2.69e-7,'abundance':[]},
+            'Fe':{'name':'iron','A':55.8,'defaultToH':3.16e-5,'abundance':[]},
+            'Co':{'name':'cobalt','A':58.9,'defaultToH':9.77e-8,'abundance':[]},
+            'Ni':{'name':'nickel','A':58.7,'defaultToH':1.66e-6,'abundance':[]},
+            'Cu':{'name':'copper','A':63.5,'defaultToH':1.55e-8,'abundance':[]},
+            'Zn':{'name':'zinc','A':65.4,'defaultToH':3.63e-8,'abundance':[]},
             'Z':{'name':'metals','abundance':self._param_Z}
             }
         
@@ -413,7 +414,7 @@ class CloudyObject(converter.CloudyToSkirt):
             'mass': self.__fillMass,
             'hydrogendensity': self.__fillnH,
             #Chemistry-Basic (if some parameters are lacking, it will use default options)
-            'hellium': self.__fillHe,
+            'helium': self.__fillHe,
             'metallicity': self.__fillZ,
             #Chemistry-Custom
             'lithium':'Li',

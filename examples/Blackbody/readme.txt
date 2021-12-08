@@ -12,9 +12,10 @@ To run this test, enter in 'Main.py' and write in these lines:
 > meanIntensity_positions = 'input_data/MeanIntensity_Positions/BlackBody_positions.txt'
 Assuming that you have placed these files as told above.
 
-Now you can select in the "WavelengthOptions" dictionary your spectral resolution. For this test, I recommend to change 'convWavelength' from 150e3 to [5.0,150e3].
-This option tells Mixclask what are the wavelengths where we test if the result obtained in a iteration converges.
-For this case, We choose 5 nm and 150 microns because we are interested in having gas absoption and dust emission, respectively, correct. 
+Now you can select in the "WavelengthOptions" dictionary your spectral resolution. For this test, I recommend to change 'convWavelength' from 150e3 to [(5.0,9.0),(1.0e5,1.0e6)].
+This option tells Mixclask what are the wavelength ranges where we test if the result obtained in a iteration converges.
+Although you can give a list of numbers to check if result converges in particular wavelengths, it is better to provide a tuple to check the convergence of the integral between (l0,l1).
+For this case, We choose a far UV range, where the gas absorption is important, and a far IR range to check if dust emission converges.
 
 Finally, go to these lines:
 > # Some technical parameters

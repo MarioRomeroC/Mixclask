@@ -67,7 +67,7 @@ class ConvergenceObject(object):
             wavelengths, FourPi_nuJnu = self.__readSEDfile(self.__sedFiles[ii])
             result[ii] = unk.integrate(desired_wl,wavelengths,FourPi_nuJnu)
         
-        return result[ii]
+        return result
             
     
     def iteration(self,time_elapsed):
