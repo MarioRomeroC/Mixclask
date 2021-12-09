@@ -83,7 +83,7 @@ class ConvergenceObject(object):
         for w in range(0,len(self.__target_wl)):
             print("Debug: current wavelength = "+str(self.__target_wl[w]))
             curr_intensity = self.__compute_intensity(self.__target_wl[w])
-            if all(elem == None for elem in self.__prev_values[w]): 
+            if all(elem == None for elem in self.__prev_intensity[w]): 
                 #We have not iterated before, so keep this result
                 #This happens for the iteration 0 (gas is not included yet)
                 convergence.append(False)
