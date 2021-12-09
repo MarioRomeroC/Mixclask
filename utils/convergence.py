@@ -25,10 +25,10 @@ class ConvergenceObject(object):
             self.__target_wl = [target_wavelength]
         
         #Store previous values:
-        self.__prev_values = [ [ None for j in range(0,len(self.__sedFiles)) ] for i in range(0,len(self.__target_wl))]
+        self.__prev_intensity = [ [ None for j in range(0,len(self.__sedFiles)) ] for i in range(0,len(self.__target_wl))]
         self.__prev_result = [ None for i in range(0,len(self.__target_wl)) ]
         #so:
-        # self.__prev_values[wavelength][zone]
+        # self.__prev_intensity[wavelength][zone]
         # self.__prev_result[zone]
     
     def __readSEDfile(self,file):
@@ -39,33 +39,29 @@ class ConvergenceObject(object):
         
         return wavelengths, FourPi_nuJnu
     
-    def __compute_values(self,desired_wl):
+    def __compute_intensity(self,desired_wl):
         if isinstance(desired_wl,(tuple,list,np.ndarray)):
-            return self.__compute_integral(desired_wl)
+            return self.__integrated_intensity(desired_wl)
         else: #you gave a float
-            return self.__find_values(desired_wl)
+            return self.__interpolated_intensity(desired_wl)
     
-    def __find_values(self,desired_wl):
+    def __interpolated_intensity(self,desired_wl):
         #desired_wl is a FLOAT
         result = np.empty(len(self.__sedFiles))
         for ii in range(0,len(self.__sedFiles)):
-            #file = self.__sedFiles[ii]
-            #all_data = unk.readColumn(file,[0,1])
-            #wavelengths  = np.flip(all_data[:,0])
-            #FourPi_nuJnu = np.flip(all_data[:,1])
             wavelengths, FourPi_nuJnu = self.__readSEDfile(self.__sedFiles[ii])
             
-            #For now, I get the value at the target wavelength to check convergence.
+            #Get the value at the target wavelength to check convergence.
             result[ii] = np.interp(desired_wl,wavelengths,FourPi_nuJnu)
             
         return result
     
-    def __compute_integral(self,desired_wl):
+    def __integrated_intensity(self,desired_wl_range):
         #desired_wl is a tuple/list -> (x[0],x[1])
         result = np.empty(len(self.__sedFiles))
         for ii in range(0,len(self.__sedFiles)):
             wavelengths, FourPi_nuJnu = self.__readSEDfile(self.__sedFiles[ii])
-            result[ii] = unk.integrate(desired_wl,wavelengths,FourPi_nuJnu)
+            result[ii] = unk.integrate(desired_wl_range,wavelengths,FourPi_nuJnu)
         
         return result
             
@@ -79,41 +75,34 @@ class ConvergenceObject(object):
         #First, check if we have reached max_iterations
         if self.n_iterations > self.__max_it:
             #Stop if maximum number of iteration has been reached
-            print("Warning: Stopped because max iterations reached")
+            print("Warning: Stopped because max iterations reached. Check if tolerance is too low for the montecarlo noise")
             return True
         
         #Now check, per target_wavelength, if error < tolerance
         convergence = []
-        error = []
         for w in range(0,len(self.__target_wl)):
-            curr_values_w = self.__compute_values(self.__target_wl[w]) #Here, we look for the value of 4pi*lambda*J_lambda at the wavelength
+            print("Debug: current wavelength = "+str(self.__target_wl[w]))
+            curr_intensity = self.__compute_intensity(self.__target_wl[w])
             if all(elem == None for elem in self.__prev_values[w]): 
                 #We have not iterated before, so keep this result
                 #This happens for the iteration 0 (gas is not included yet)
                 convergence.append(False)
-                error.append(None)
-            elif self.__prev_result[w] == None:
-                #We have iterated once, and because computing the error means to have current and previous result, this value has not been computed before
-                #This happens for iteration 1
-                self.__prev_result[w] = unk.RMSD(self.__prev_values[w],curr_values_w) #root mean squared deviation
-                convergence.append(False)
-                error.append(None)
             else:
-                #We have iterated twice. We can now check convergence
-                curr_result_w = unk.RMSD(self.__prev_values[w],curr_values_w)
-                diff = abs(curr_result_w-self.__prev_result[w])
-                error.append( (diff/self.__prev_result[w]) if diff != 0.0 else 0.0 )  #To avoid a (0-0)/0 = nan and so never converges
-                if error[-1] < self.tolerance:
+                #We have iterated once. We can now check convergence
+                intensity_difference = abs(curr_intensity - self.__prev_intensity[w])
+                intensity_mean       = 0.5 * (curr_intensity + self.__prev_intensity[w])
+                n_zones = len(intensity_difference) #Just for clarity
+                if all(intensity_difference[zone] <= self.tolerance*intensity_mean[zone] for zone in range(0,n_zones)):
                     convergence.append(True)
                 else:
                     convergence.append(False)
-                
-                self.__prev_result[w] = curr_result_w
-                
-            self.__prev_values[w] = curr_values_w
+            
+                print("Debug: Differences = "+str(intensity_difference)+" . Means = "+str(intensity_mean))
+            
+            self.__prev_intensity[w] = curr_intensity
         
         
-        print("Debug: Tolerance = "+str(self.tolerance)+" . Errors = "+str(error)+" . Wavelengths = "+str(self.__target_wl))
+        print("Debug: Tolerance = "+str(self.tolerance)+" . Convergence? : "+str(convergence))
         if any(elem == False for elem in convergence):
             print("Convergence not reached, I will iterate again.")
             return False
