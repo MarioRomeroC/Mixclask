@@ -97,7 +97,7 @@ class CloudyToSkirt(object): #I need read_config
         #Get gas mass density
         rho_gas = np.trapz(rho_region,s) / (s[-1]-s[0]) #Taking the mean of the zone...
         #Add dust if provided
-        if DTG != None:
+        if DTG != None and DTG > 0.0:
             return (1.0 + DTG)*rho_gas
         else:
             return rho_gas #DTG = 0
