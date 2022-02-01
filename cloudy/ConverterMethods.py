@@ -30,7 +30,7 @@ class CloudyToSkirt(object): #I need read_config
             #print(z)
             overview_name = "overview_zone"+str(z)+extension
             composition_name = "composition_zone"+str(z)+extension
-            rho = self._meanDensity(overview_name,composition_name)
+            rho = self._meanDensity(overview_name,composition_name,self._param_DTG[z])
             M   = self._param_mass[z] #remember, in solar masses
             
             #Get opacities and corrections
@@ -72,9 +72,10 @@ class CloudyToSkirt(object): #I need read_config
             
             #break #Testing for the first zone only
     
-    def _meanDensity(self,overview_name,composition_name):
+    def _meanDensity(self,overview_name,composition_name,DTG):
         #Here we get the density from overview and composition files
         #In this manner, result is not dependent of geometry (the alternative would be Mass/Volume)
+        #However, cloudy return gas abundances in these files, so DTG is needed to return ISM density
         
         #Get depth s
         s   = unk.readColumn(overview_name,0)
@@ -91,9 +92,15 @@ class CloudyToSkirt(object): #I need read_config
             rho.append(self.mH*np.dot(self.Ai,ni))
         
         abundances.close()
-        rho = np.array(rho)
+        rho_region = np.array(rho)
         
-        return np.trapz(rho,s) / (s[-1]-s[0]) #Taking the mean of the zone...
+        #Get gas mass density
+        rho_gas = np.trapz(rho_region,s) / (s[-1]-s[0]) #Taking the mean of the zone...
+        #Add dust if provided
+        if DTG != None:
+            return (1.0 + DTG)*rho_gas
+        else:
+            return rho_gas #DTG = 0
     
     def _getOpacities(self,tau_name,rho,zone,wavelengths):
         #Return is [total optical depth, extinction coefficient (cm2/g), albedo]
