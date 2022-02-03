@@ -70,9 +70,11 @@ Geometry follows the same structure as the stellar geometry for ring and shell g
 For chemical elements, you can give more data such as He fraction and Z. These are mass fractions relative to ONLY GAS.
 Furthermore, you can give specific elements mass fractions up to Zn. They are labelled as 'lithium fraction', 'beryllium fraction', 'boro fraction', 'carbon fraction', etc.
 If you give specific elements, you must not give metallicity, as it take precedence.
+By default, Mixclask uses Grevesse et al. 2010 abundances (Solar composition, 'abundances gass' in cloudy) as base.
 
 For dust, you can give the Dust-To-Gas ratio, M_dust/ISM mass and the PAH-to-dust ratio (M_PAH/M_dust).
 PAH-to-dust ratio is named in the literature as q_pah.
+By default, Mixclask adds ism grains and PAH, using the cloudy commands 'grains ism' and 'grains pah' (see cloudy documentation). To remove dust, you have to give DTG = 0.0 in the input.
 
 -Output positions: 
 File structure is the same as the Skirt probe 'RadiationFieldAtPositions': https://skirt.ugent.be/skirt9/class_radiation_field_at_positions_probe.html

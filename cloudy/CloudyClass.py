@@ -267,8 +267,8 @@ class CloudyObject(converter.CloudyToSkirt):
         file.write("hden "+str(hden)+" \n")
         
         if self._param_Y[zone] == None: #Default options
-            file.write("abundaces ism no grains \n")
-           # __writeDust()
+            #You only gave M and n_H. No info for other chemical elements
+            file.write("abundaces gass \n")
             
         elif self._param_Z[zone] != None:
             #metallicity is given AND TAKES PREFERENCE over custom abundances

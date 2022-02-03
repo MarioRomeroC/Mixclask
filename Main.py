@@ -20,11 +20,11 @@ is_iteration0 = True # If true, mixclask will do a skirt simulation with only 's
 
 # What are your spectra resolution and normalization?
 WavelengthOptions = {
-    'normalization': 1.0e7, #nm
-    'maxWavelength':1.0e9, #nm
-    'minWavelength':0.1, #nm
+    'normalization': 550.0, #nm
+    'maxWavelength':3.0e5, #nm
+    'minWavelength':9.1, #nm
     'resolution':200,
-    'convWavelength':150e3 #nm #Convergence wavelength
+    'convWavelength':[(10.0,90.0),(100e3,300e3)] #nm #Convergence wavelength
     }
 
 #These outputs are useful for diagnostics, they are not needed for this code to work properly
@@ -46,9 +46,8 @@ ExtraCloudyOutputs = {
 # Some technical parameters
 cloudy_path = '/path/to/your/cloudy/exe'
 show_cloudy_params = False
-#last_iteration = 0 #(DEPRECIATED) Useful for tracking the number of iteration if 'is_iteration0=False'
-n_iterations = 6
-n_threads = 4
+n_iterations = 15
+n_threads = 2
 tolerance = 0.1 #For convergence.
 
 ### MAIN ROUTINE ###

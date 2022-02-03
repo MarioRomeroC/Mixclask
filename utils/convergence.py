@@ -97,12 +97,12 @@ class ConvergenceObject(object):
                 else:
                     convergence.append(False)
             
-                print("Debug: Differences = "+str(intensity_difference)+" . Means = "+str(intensity_mean))
+                #print("Debug: Differences = "+str(intensity_difference)+" . Means = "+str(intensity_mean))
             
             self.__prev_intensity[w] = curr_intensity
         
         
-        print("Debug: Tolerance = "+str(self.tolerance)+" . Convergence? : "+str(convergence))
+        #print("Debug: Tolerance = "+str(self.tolerance)+" . Convergence? : "+str(convergence))
         if any(elem == False for elem in convergence):
             print("Convergence not reached, I will iterate again.")
             return False
