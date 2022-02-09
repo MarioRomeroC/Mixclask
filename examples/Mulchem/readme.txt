@@ -1,15 +1,15 @@
-Here you will find the files of the Blackbody test done in Romero et al. (in prep), section 3.
+Here you will find the files to reproduce the ISRF of the Mulchem chemical evolution model (Molla et. al. 2022) shown in Romero et al. (in prep), section 4.
 
--BlackBody_positions.txt contains the positions where the mean intensity output will be saved. This goes to the 'MeanIntensity_Positions' folder in 'input_data'
--BlackBody_source.stab is the emission spectra of the blackbody at the center of the simulation. This goes to 'star_sources' folder in 'input_data'
--BlackBody_gas.dat contains the initial conditions of the gas. The files Mixclask will read the input spectra are in the first column, from the folder than contains 'main.py'.
--Blackbody_star.dat contains the geometry and location of the stellar sources. Mixclask will look if the file in the first column exists in 'star_sources'.
+-Mulchem_positions.txt contains the positions where the mean intensity output will be saved. This goes to the 'MeanIntensity_Positions' folder in 'input_data'
+-Mulchem_gas.dat contains the initial conditions of the gas. The files Mixclask will read the input spectra are in the first column, from the folder than contains 'main.py'.
+-Mulchem_stars.dat contains the geometry and location of the stellar sources. Mixclask will look if the file in the first column exists in 'star_sources'.
+-Inside the 'stars' folder, you will find the stellar spectra of all regions in 'Mulchem_stars.dat'. The contents of this folder should me copied to 'star_sources' folder in 'input_data'.
 
 To run this test without minimal input for the user, enter in 'Main.py' and write in these lines:
 > # Where are the gas and star parameters starting from this folder?
-> gas_params  = 'input_data/params/BlackBody_gas.dat'
-> star_params = 'input_data/params/BlackBody_star.dat'
-> meanIntensity_positions = 'input_data/MeanIntensity_Positions/BlackBody_positions.txt'
+> gas_params  = 'input_data/params/Mulchem_gas.dat'
+> star_params = 'input_data/params/Mulchem_stars.dat'
+> meanIntensity_positions = 'input_data/MeanIntensity_Positions/Mulchem_positions.txt'
 Assuming that you have placed these files as told above.
 
 Finally, go to these lines:
@@ -30,4 +30,4 @@ And that's all, run in terminal:
 If you want the text that Mixclask says during runtime written in a file instead, use
 > python3 -u Main.py > file.log &
 
-This test can take some hours to complete, between 10 to 20h.
+This test can take some hours to complete, between 10 to 15h.

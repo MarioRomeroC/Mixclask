@@ -170,10 +170,26 @@ class CloudyObject(converter.CloudyToSkirt):
         '''
         self._n_digits = 4
         self.round_to = lambda n,x : round(x, -int(np.floor(np.log10(abs(x)))) + (n - 1))
+        
+        #Extra outputs (They are used for diagnostics)
+        self._ExtraCloudyOutputs = {   
+            'Emissivity': False, #Stores emissivity j at last zone of cloudy
+            'Opacity':False, #Stores opacity alpha at last zone of cloudy
+            'RadiativeTransfer':{
+                'Active': False, #Stores j, alpha and albedo as function of depth
+                                        #for particular wavelengths defined below
+                'Wavelengths': [200.0,443.0,550.0,2200,24e3,150e3] #nm
+                },
+           'Grains':{
+               'Abundances': False, #Save grains abundances (g/cm3) of all species (dust and pah) as function of depth
+               'DTG':False #Save the dust-to-gas ratio of all species as function of depth
+       }
+        
+    }
 
     ### MAKE AND RUN CLOUDY INPUT
 
-    def make_input(self,IOextensions,outfile="cloudyInput"):
+    def make_input(self,outfile="cloudyInput"):
         #Generates the input file for cloudy
         #IOextensions is a dictionary
         prefix = outfile
@@ -192,7 +208,7 @@ class CloudyObject(converter.CloudyToSkirt):
             self.__writeOutputs(outfile,z) #Needed outputs from cloudy
             
             #Extra outputs?
-            self.__writeExtra(outfile,z,IOextensions)
+            self.__writeExtra(outfile,z,self._ExtraCloudyOutputs)
             
             outfile.close()
             self.__inputs.append(filename.replace('.in','')) #Will be needed for running cloudy

@@ -69,7 +69,7 @@ Geometry follows the same structure as the stellar geometry for ring and shell g
 
 For chemical elements, you can give more data such as He fraction and Z. These are mass fractions relative to ONLY GAS.
 Furthermore, you can give specific elements mass fractions up to Zn. They are labelled as 'lithium fraction', 'beryllium fraction', 'boro fraction', 'carbon fraction', etc.
-If you give specific elements, you must not give metallicity, as it take precedence.
+If you give specific elements, you must not give metallicity, as it takes precedence.
 By default, Mixclask uses Grevesse et al. 2010 abundances (Solar composition, 'abundances gass' in cloudy) as base.
 
 For dust, you can give the Dust-To-Gas ratio, M_dust/ISM mass and the PAH-to-dust ratio (M_PAH/M_dust).
@@ -88,8 +88,8 @@ File structure is the same as the Skirt probe 'RadiationFieldAtPositions': https
 >...
 Units of each columns are more flexible here (you can write 'kpc' instead of 'pc' and give data in these units)
 However, the first rows ALWAYS have to match with the middle of each ISM region. For rings, this is the ring radius. For shells, this is the sum of the outer and inner radius, divided by two (its mean).
-In the ISM example provided, first row must be 1.0 0.0 0.0 and second 2.5 0.0 0.0. The output files of these region would be the SedFile you provide in the ISM input data.
-Once all ISM region have its corresponding row, any remaining rows can have the positions you want, and they will be named as 'output_R[number]_z[number]kpc.sed .
+In the ISM example provided, first row must be 1.0 0.0 0.0 and second 2.5 0.0 0.0. The output files of these region would be the SedFile you provide in the ISM input data ('ISMregion1.sed' and 'ISMregion2.sed', from the same example).
+Once all ISM regions have its corresponding row, any remaining rows can have the positions you want, and they will be named as 'output_R[number]_z[number]kpc.sed .
 Taking the ISM input example, third row will produce an output called 'output_R0.0036_z0.005kpc.sed'
 
 ---
@@ -103,11 +103,11 @@ These contains the location of the input data files explained above.
 
 Next, you set the wavelength resolution and convergence here:
 >WavelengthOptions = {
->    'normalization': 1.0e7, #nm
->    'maxWavelength':1.0e9, #nm
->    'minWavelength':0.1, #nm
+>    'normalization': 550, #nm
+>    'maxWavelength':3.0e5, #nm
+>    'minWavelength':10.0, #nm
 >    'resolution':200,
->    'convWavelength':150e3 #nm #Convergence wavelength
+>    'convWavelength':[(10.0,90.0),(100e3,300e3)] #nm #Convergence wavelength
 >    }
 The wavelength range is defined with 'maxWavelength' and 'minWavelength', and the number of points between them with 'resolution'. Points are equispaced logarithmically.
 As other options, 'normalization' is the normalization wavelength of the ISM emission spectra files that Mixclask generates. Although any number between 'maxWavelength' and 'minWavelength' works, I recommend to use the same wavelength used for stellar spectra files for consistency.
@@ -125,16 +125,22 @@ That is, the value does not change when you provide a single wavelength (300 and
 The last set of lines you should watch are
 >cloudy_path = '/path/to/your/cloudy/exe'
 >show_cloudy_params = False
->n_iterations = 6
->tolerance = 0.1 #For convergence.
+>n_iterations = 15
+>n_threads = 2
+>tolerance = 0.15 #For convergence.
 In 'cloudy_path', you must specify where 'cloudy.exe' is found in your computer. 
 If you installed cloudy normally, it should be in 'cXX.XX/source/cloudy.exe'. Where 'XX.XX' is the version of cloudy (e.g.: if version is 17.01, write c17.01).
 PLEASE NOTE that this isn't the full path, you must put before the location of 'cXX.XX/source/cloudy.exe' (i.e.: the folder where you have installed cloudy), and the string must start with '/'.
 'n_iterations' is the max number of iterations that Mixclask does before stopping if convergence is not reached before.
-And 'tolerance' is the maximum absolute diference between previous and current mean intensity to consider if a particular ISM region and element of the 'convWavelength' list has converged.
+'n_threads' is a parameter needed for skirt. They are the number of tasks that your cpu will use for executing this code (usually, the total number of threads that your computer has is n_cpu*2).
+And 'tolerance' is used for the converegence criterion. In particular, it checks:
+> |(This iteration) - (Prev. iteration)| <= tolerance*[(This iteration) + (Prev. iteration)]/2 
+for all ISM regions and wavelengths given in the ISM file and 'convWavelength', respectively
 
 ---
 
 And that's all! To run Mixclask, just write in terminal
 >python Main.py
 (not-updated versions may require 'python3'). Also, you can run it in spyder instead if you wish.
+As an alternative, you can run it in background as
+> python3 -u Main.py > file.log &
