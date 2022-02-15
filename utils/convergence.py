@@ -15,7 +15,6 @@ class ConvergenceObject(object):
         #Declare some parameters
         self.__sedFiles  = SED_files #like CloudyClass
         self.__max_it    = max_iterations
-        self.tolerance   = tolerance
         
         self.n_iterations = 0
         
@@ -23,6 +22,11 @@ class ConvergenceObject(object):
             self.__target_wl = target_wavelength #Can be a list
         else: #int or float
             self.__target_wl = [target_wavelength]
+        
+        if len(tolerance) == len(self.__target_wl):
+            self.tolerance   = tolerance
+        else:
+            raise RuntimeError("'tolerance' length must be the same as 'convWavelength'")
         
         #Store previous values:
         self.__prev_intensity = [ [ None for j in range(0,len(self.__sedFiles)) ] for i in range(0,len(self.__target_wl))]
@@ -92,12 +96,11 @@ class ConvergenceObject(object):
                 intensity_difference = abs(curr_intensity - self.__prev_intensity[w])
                 intensity_mean       = 0.5 * (curr_intensity + self.__prev_intensity[w])
                 n_zones = len(intensity_difference) #Just for clarity
-                if all(intensity_difference[zone] <= self.tolerance*intensity_mean[zone] for zone in range(0,n_zones)):
+                if all(intensity_difference[zone] <= self.tolerance[w]*intensity_mean[zone] for zone in range(0,n_zones)):
                     convergence.append(True)
                 else:
                     convergence.append(False)
             
-                #print("Debug: Differences = "+str(intensity_difference)+" . Means = "+str(intensity_mean))
             
             self.__prev_intensity[w] = curr_intensity
         

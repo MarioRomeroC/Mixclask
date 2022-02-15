@@ -18,7 +18,7 @@ Finally, go to these lines:
 > show_cloudy_params = False
 > n_iterations = 15
 > n_threads = 2
-> tolerance = 0.15
+> tolerance = [0.67,0.10]
 In 'cloudy_path' you must specify where 'cloudy.exe' is found in your computer. 
 If you installed cloudy normally, it should be in 'cXX.XX/source/cloudy.exe'. Where 'XX.XX' is the version of cloudy (e.g.: if version is 17.01, write c17.01).
 PLEASE NOTE that this isn't the full path, you must put before the location of 'cXX.XX/source/cloudy.exe' (i.e.: the folder where you have installed cloudy), and the string must start with '/'.

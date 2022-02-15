@@ -32,7 +32,7 @@ cloudy_path = '/path/to/your/cloudy/exe'
 show_cloudy_params = False
 n_iterations = 15
 n_threads = 2
-tolerance = 0.15 #For convergence.
+tolerance = [0.67,0.10] #For convergence. Length must be the same as 'convWavelength'
 
 ### MAIN ROUTINE ###
 

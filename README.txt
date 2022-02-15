@@ -127,13 +127,15 @@ The last set of lines you should watch are
 >show_cloudy_params = False
 >n_iterations = 15
 >n_threads = 2
->tolerance = 0.15 #For convergence.
+>tolerance = [0.67,0.10]
 In 'cloudy_path', you must specify where 'cloudy.exe' is found in your computer. 
 If you installed cloudy normally, it should be in 'cXX.XX/source/cloudy.exe'. Where 'XX.XX' is the version of cloudy (e.g.: if version is 17.01, write c17.01).
 PLEASE NOTE that this isn't the full path, you must put before the location of 'cXX.XX/source/cloudy.exe' (i.e.: the folder where you have installed cloudy), and the string must start with '/'.
 'n_iterations' is the max number of iterations that Mixclask does before stopping if convergence is not reached before.
 'n_threads' is a parameter needed for skirt. They are the number of tasks that your cpu will use for executing this code (usually, the total number of threads that your computer has is n_cpu*2).
-And 'tolerance' is used for the converegence criterion. In particular, it checks:
+And 'tolerance' is used for the converegence criterion for each element of 'convWavelength'. 
+For example, if 'convWavelength' = [(10.0,90.0),(100e3,300e3)] and tolerance = [0.67,0.10], Mixclask will check tolerance = 0.67 for the (10.0,90.0) nm range, and 0.1 for the (100e3,300e3) nm . 
+Convergence is evaluated with this expression: 
 > |(This iteration) - (Prev. iteration)| <= tolerance*[(This iteration) + (Prev. iteration)]/2 
 for all ISM regions and wavelengths given in the ISM file and 'convWavelength', respectively
 
