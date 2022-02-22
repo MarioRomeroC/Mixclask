@@ -30,4 +30,4 @@ And that's all, run in terminal:
 If you want the text that Mixclask says during runtime written in a file instead, use
 > python3 -u Main.py > file.log &
 
-This test can take some hours to complete, between 10 to 15h.
+This test can take some hours to complete, about 10h
