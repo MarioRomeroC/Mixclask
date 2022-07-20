@@ -1,6 +1,13 @@
 # Mixclask
 Mixing cloudy and skirt
 
+#------------
+VERSION 1. ONLY WORKS WITH VERSIONS OF SKIRT v9 PREVIOUS TO 18th MAY
+
+This version is also kept for legacy purposes, as it was the version used for the first iteration of Romero+22 paper (https://arxiv.org/abs/2203.04782)
+#------------
+
+
 This code combine cloudy (https://gitlab.nublado.org/cloudy/cloudy/-/wikis/home) and skirt (https://skirt.ugent.be/root/_landing.html) to predict spectra and gas properties in astrophysical contexts (galaxies, HII regions...). This code assumes that you have installed both codes following their instructions.
 You must also have python3 installed with flatten-dict module (if not, write 'pip3 install flatten-dict' in terminal)
 
