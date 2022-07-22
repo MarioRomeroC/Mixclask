@@ -218,19 +218,24 @@ class SkiParams(object):
                     'MonteCarloSimulation':{
                         'userLevel':"Expert",
                         'simulationMode':"ExtinctionOnly",
+                        'iterateMediumState':'false',
+                        'iterateSecondaryEmission':'false',
                         'numPackets':self._photonPackets,
-                    'random':{
-                        'type':'Random',
-                        'Random':{'seed':self._montecarloSeed}
-                                },        
-                    'units':{
-                        'type':'Units',
-                        'ExtragalacticUnits':{'fluxOutputStyle': 'Neutral'}
-                            },
-                    'cosmology':{
-                        'type':'Cosmology',
-                        'LocalUniverseCosmology':{}
-                                }
+                        'random':{
+                            'type':'Random',
+                            'Random':{'seed':self._montecarloSeed}
+                                    },
+                        'units':{
+                            'type':'Units',
+                            'ExtragalacticUnits':{
+                                'wavelengthOutputStyle': 'Wavelength',
+                                'fluxOutputStyle': 'Neutral'
+                                    }
+                                },
+                        'cosmology':{
+                            'type':'Cosmology',
+                            'LocalUniverseCosmology':{}
+                                    }
                     }
                 }
         #Return
@@ -296,6 +301,14 @@ class SkiParams(object):
                     		                            'unitStyle':'neutralmonluminosity',
                     		                            'specificLuminosity':norm_value_ii} 
                     		                    }
+                                            #,
+                                            #'wavelengthBiasDistribution':{
+                                            #    'type': 'WavelengthDistribution',
+                                            #    'LogWavelengthDistribution':{
+                                            #        'minWavelength': str(self._wavelength_min) + ' nm',
+                                            #        'maxWavelength': str(self._wavelength_max) + ' nm'
+                                            #        }
+                                            #    }
                     		                }
                     		            }
             elif self._star_geometry[ii][0] == 'ring':
@@ -327,6 +340,14 @@ class SkiParams(object):
                     		                            'unitStyle':'neutralmonluminosity',
                     		                            'specificLuminosity':norm_value_ii} 
                     		                    }
+                                            # ,
+                                            # 'wavelengthBiasDistribution':{
+                                            #    'type': 'WavelengthDistribution',
+                                            #    'LogWavelengthDistribution':{
+                                            #        'minWavelength': str(self._wavelength_min) + ' nm',
+                                            #        'maxWavelength': str(self._wavelength_max) + ' nm'
+                                            #        }
+                                            #    }
                     		                }
                     		            }
                 
@@ -363,6 +384,14 @@ class SkiParams(object):
                                                         'unitStyle':'neutralmonluminosity',
                                                         'specificLuminosity':norm_value_ii}
                                                     }
+                                            # ,
+                                            # 'wavelengthBiasDistribution':{
+                                            #    'type': 'WavelengthDistribution',
+                                            #    'LogWavelengthDistribution':{
+                                            #        'minWavelength': str(self._wavelength_min) + ' nm',
+                                            #        'maxWavelength': str(self._wavelength_max) + ' nm'
+                                            #        }
+                                            #    }
                                                 }
                                             }
             else:
@@ -421,6 +450,14 @@ class SkiParams(object):
                                                             'unitStyle':'neutralmonluminosity',
                                                             'specificLuminosity':norm_value_ii}
                                                     }
+                                                # ,
+                                                # 'wavelengthBiasDistribution':{
+                                                #    'type': 'WavelengthDistribution',
+                                                #    'LogWavelengthDistribution':{
+                                                #        'minWavelength': str(self._wavelength_min) + ' nm',
+                                                #        'maxWavelength': str(self._wavelength_max) + ' nm'
+                                                #        }
+                                                #    }
                                                 }
                                             }
                     
@@ -453,6 +490,14 @@ class SkiParams(object):
                                                             'unitStyle':'neutralmonluminosity',
                                                             'specificLuminosity':norm_value_ii}
                                                     }
+                                                # ,
+                                                # 'wavelengthBiasDistribution':{
+                                                #    'type': 'WavelengthDistribution',
+                                                #    'LogWavelengthDistribution':{
+                                                #        'minWavelength': str(self._wavelength_min) + ' nm',
+                                                #        'maxWavelength': str(self._wavelength_max) + ' nm'
+                                                #        }
+                                                #    }
                                                 }
                                             }
                 else:
@@ -478,32 +523,34 @@ class SkiParams(object):
         Media = dict()
         
         # Basic properties 
-        Media['MediumSystem'] = { 'numDensitySamples':'100',
-                                   'photonPacketOptions':{'type':'PhotonPacketOptions',
+        Media['MediumSystem'] = { 'photonPacketOptions':{'type':'PhotonPacketOptions',
                                                           'PhotonPacketOptions':{
-                                                              'forceScattering':True,
+                                                              'explicitAbsorption':'false',
+                                                              'forceScattering':'true',
                                                               'minWeightReduction':1e4,
                                                               'minScattEvents':'0',
-                                                              'pathLengthBias':'0.5'}},
-               'extinctionOnlyOptions':{'type':'ExtinctionOnlyOptions',
-                                        'ExtinctionOnlyOptions':{
-                                            'storeRadiationField':'true',
-                                            'radiationFieldWLG':{'type':'DisjointWavelengthGrid',
-                                                             'LogWavelengthGrid':{
-                                                                 'minWavelength':str(self._wavelength_min)+' nm',
-                                                                 'maxWavelength':str(self._wavelength_max)+' nm',
-                                                                 'numWavelengths': str(self._wavelength_res)
-                                                                                 }
-                                                             }}
-                                        },
-               'dynamicStateOptions':{'type':'DynamicStateOptions', 
-                                      'DynamicStateOptions':{'hasDynamicState':False, #If true, uncomment lines after 'recipes'
-                                                             'minIterations':'1',
-                                                             'maxIterations':'10',
-                                                             'iterationPacketsMultiplier':'1'
-                                                             }
-                                      }
-                                    }
+                                                              'pathLengthBias':'0.5'}
+                                                         },
+                                  'radiationFieldOptions':{'type':'RadiationFieldOptions',
+                                                           'RadiationFieldOptions':{
+                                                               'storeRadiationField': 'true',
+                                                               'radiationFieldWLG':{'type':'DisjointWavelengthGrid',
+                                                                    'LogWavelengthGrid':{
+                                                                        'minWavelength': str(self._wavelength_min) + ' nm',
+                                                                        'maxWavelength': str(self._wavelength_max) + ' nm',
+                                                                        'numWavelengths': str(self._wavelength_res)
+                                                                        }
+                                                                    }
+                                                                }
+                                                          },
+                                   #'dynamicStateOptions':{'type':'DynamicStateOptions',
+                                   #                       'DynamicStateOptions':{'hasDynamicState':False, #If true, uncomment lines after 'recipes'
+                                   #                                              'minIterations':'1',
+                                   #                                              'maxIterations':'10',
+                                   #                                              'iterationPacketsMultiplier':'1'
+                                   #                                              }
+                                   #                       }
+                                }
         
         Media['MediumSystem']['media'] = {'type':'Medium'}
         
@@ -589,7 +636,15 @@ class SkiParams(object):
             number_ii = str(ii+1).zfill(3)
             Media['MediumSystem']['media'][(medium_key+" {}").format(number_ii)] = medium_ii 
            
-               
+
+        Media['MediumSystem']['samplingOptions'] = {'type':'SamplingOptions',
+                                                    'SamplingOptions':{
+                                                        'numDensitySamples':100,
+                                                        'numPropertySamples':1,
+                                                        'aggregateVelocity':'Average'
+                                                        }
+                                                    }
+
         Media['MediumSystem']['grid'] = {'type':'SpatialGrid',
                            'Cylinder2DSpatialGrid': {'maxRadius':self._border_r, 
                                                      'minZ':'-'+self._border_z,
@@ -653,28 +708,34 @@ class SkiParams(object):
         
         Probes['ProbeSystem'] = {
             'probes':{'type':'Probe',    
-            'LuminosityProbe 1':{
-                                'probeName':'source_lum',
-                                'wavelengthGrid':{'type':'WavelengthGrid',
-                                 'LogWavelengthGrid':{
-                                     'minWavelength':str(self._wavelength_min)+' nm',
-                                     'maxWavelength':str(self._wavelength_max)+' nm',
-                                     'numWavelengths':str(self._wavelength_res)
-                                                      }
-                                 }
-                                },
-            'SpatialGridConvergenceProbe 1':{'probeName':"conv",
-                                             'wavelength':str(self._wavelength_norm)+' nm'
-                                             },
-            'RadiationFieldAtPositionsProbe 1':{
-                'probeName':"nuJnu",
-                'filename':self.__MeanIntensity_Positions,
-                'useColumns':"",
-                'writeWavelengthGrid':"false"
-                                            },
-            'InstrumentWavelengthGridProbe 1':{'probeName':"grid"},    
-            'RadiationFieldWavelengthGridProbe 1':{'probeName':"radGrid"}                        
-                    }
+                'LuminosityProbe 1':{
+                'probeName':'source_lum',
+                    'wavelengthGrid':{'type':'WavelengthGrid',
+                     'LogWavelengthGrid':{
+                         'minWavelength':str(self._wavelength_min)+' nm',
+                         'maxWavelength':str(self._wavelength_max)+' nm',
+                         'numWavelengths':str(self._wavelength_res)
+                                          }
+                     }
+                },
+                'ConvergenceInfoProbe 1':{'probeName':"conv",
+                                                 'wavelength':str(self._wavelength_norm)+' nm',
+                                                 'probeAfter':'Setup'
+                                                 },
+                'RadiationFieldProbe 1':{
+                    'probeName':"nuJnu",
+                    'writeWavelengthGrid': "false",
+                    'form':{
+                        'type':'Form',
+                        'AtPositionsForm':{
+                            'filename': self.__MeanIntensity_Positions,
+                            'useColumns':"",
+                            }
+                        },
+                },
+                'InstrumentWavelengthGridProbe 1':{'probeName':"grid"},
+                'RadiationFieldWavelengthGridProbe 1':{'probeName':"radGrid"}
+            }
             }
         #returns
         self.Probes = Probes

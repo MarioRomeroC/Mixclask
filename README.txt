@@ -142,7 +142,7 @@ for all ISM regions and wavelengths given in the ISM file and 'convWavelength', 
 ---
 
 And that's all! To run Mixclask, just write in terminal
->python Main.py
-(not-updated versions may require 'python3'). Also, you can run it in spyder instead if you wish.
+>python3 Main.py
+Also, you can run it in spyder instead if you wish.
 As an alternative, you can run it in background as
 > python3 -u Main.py > file.log &
