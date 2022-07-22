@@ -11,11 +11,13 @@ import utils.unkeep as unk
 
 class ConvergenceObject(object):
     #Not defined as function because I need to store parameters
-    def __init__(self,SED_files,target_wavelength,max_iterations,tolerance):
+    def __init__(self,SED_files,options_dict):#target_wavelength,max_iterations,tolerance):
         #Declare some parameters
-        self.__sedFiles  = SED_files #like CloudyClass
-        self.__max_it    = max_iterations
-        
+        self.__sedFiles   = SED_files #like CloudyClass
+        self.__max_it     = options_dict['Technical']['n_iterations']
+        target_wavelength = options_dict['AccuracyAndSpeed']['convWavelength']
+        tolerance         = options_dict['AccuracyAndSpeed']['tolerance']
+
         self.n_iterations = 0
         
         if isinstance(target_wavelength,(list,tuple,np.ndarray)):
@@ -31,9 +33,6 @@ class ConvergenceObject(object):
         #Store previous values:
         self.__prev_intensity = [ [ None for j in range(0,len(self.__sedFiles)) ] for i in range(0,len(self.__target_wl))]
         self.__prev_result = [ None for i in range(0,len(self.__target_wl)) ]
-        #so:
-        # self.__prev_intensity[wavelength][zone]
-        # self.__prev_result[zone]
     
     def __readSEDfile(self,file):
         #SEDfiles have their data sorted from highest wavelength to shortest. Numpy wants the opposite order, thus np.flip solves this issue

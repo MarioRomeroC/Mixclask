@@ -15,13 +15,13 @@ import cloudy.ConverterMethods as converter
 import numpy as np
 
 class CloudyObject(converter.CloudyToSkirt):
-    def __init__(self,params_path,cloudy_path,wavelength_dict):
+    def __init__(self,options_dict):
         self.__initEsential()
         self.__initChemistry()
-        self.__initWavelengths(wavelength_dict)
+        self.__initWavelengths(options_dict['Wavelength'])
         self.__initDetails()
-        self.__parseData(params_path)
-        self.__ExePath = cloudy_path
+        self.__parseData(options_dict['FileParameters']['ISM'])
+        self.__ExePath = options_dict['Technical']['cloudy_path']
         self.__defineConstants() #Needed for ConvertedMethods
         
         self.__checkIssues()

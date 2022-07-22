@@ -41,18 +41,18 @@ def translate_dictionary(my_dict,ii):
 # PARAMETER FILE FOR MAKING SKIRT .SKI FILES
 # =============================================================================
 class SkiParams(object):
-    def __init__(self,gas_path,star_path,output_positions,wavelength_dict):
+    def __init__(self,options_dict):#gas_path,star_path,output_positions,wavelength_dict):
         self.__initParams()
-        self.__initWavelengths(wavelength_dict)
+        self.__initWavelengths(options_dict['Wavelength'])
         self.__initFolders()
-        self.__initDetails()
+        self.__initDetails(options_dict['AccuracyAndSpeed']['photon_packets'])
         
-        self.__parseData(gas_path,'Gas')
-        self.__parseData(star_path,'Star')
+        self.__parseData(options_dict['FileParameters']['ISM'],'Gas')
+        self.__parseData(options_dict['FileParameters']['stars'],'Star')
         
         self.__deduceLimits()
         self.__checkSkirtIssues()
-        self.__MeanIntensity_Positions = output_positions
+        self.__Positions = options_dict['FileParameters']['positions']
     
     ### INITIALIZATION
     
@@ -87,9 +87,9 @@ class SkiParams(object):
         self._wavelength_norm = wavelength_dict['normalization']
         self._wavelength_res  = wavelength_dict['resolution']
     
-    def __initDetails(self):
+    def __initDetails(self,n_photons):
         #This function contains parameters used for debugging
-        self._photonPackets  = '1e8'
+        self._photonPackets  = n_photons
         self._montecarloSeed = '0'
         self._fluxProbeDistance = '1 Mpc'
         self._geometryUnits = ' pc' #The space IS intended
@@ -136,7 +136,12 @@ class SkiParams(object):
                 x = self._star_geometry[ii][1]
                 y = self._star_geometry[ii][2]
                 z = self._star_geometry[ii][3]
-                
+
+                if any((sum(x),sum(y),sum(z))) != 0.0:
+                    raise RuntimeError("Sorry, I have not implemented points outside the origin =( ")
+                    #It would require a change in the coordinate system used (Cylindrical coordinates are no longer valid)
+                    #And to allow that is now low priority
+
                 Rcan = np.sqrt(x*x+y*y+z*z)
                 zcan = z
         
@@ -728,7 +733,7 @@ class SkiParams(object):
                     'form':{
                         'type':'Form',
                         'AtPositionsForm':{
-                            'filename': self.__MeanIntensity_Positions,
+                            'filename': self.__Positions,
                             'useColumns':"",
                             }
                         },
