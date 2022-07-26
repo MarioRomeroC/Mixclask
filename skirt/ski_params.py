@@ -45,7 +45,8 @@ class SkiParams(object):
         self.__initParams()
         self.__initWavelengths(options_dict['Wavelength'])
         self.__initFolders()
-        self.__initDetails(options_dict['AccuracyAndSpeed']['photon_packets'])
+        self.__initPhotons(options_dict['AccuracyAndSpeed']['photon_packets'],options_dict['AccuracyAndSpeed']['PhotonProbability'])
+        self.__initDetails()
         
         self.__parseData(options_dict['FileParameters']['ISM'],'Gas')
         self.__parseData(options_dict['FileParameters']['stars'],'Star')
@@ -86,10 +87,13 @@ class SkiParams(object):
         self._wavelength_min  = wavelength_dict['minWavelength']
         self._wavelength_norm = wavelength_dict['normalization']
         self._wavelength_res  = wavelength_dict['resolution']
-    
-    def __initDetails(self,n_photons):
+
+    def __initPhotons(self,n_photons,probability_dic):
+        self._photonPackets = n_photons
+        self._perRegionProbability = probability_dic['per_region']
+
+    def __initDetails(self):
         #This function contains parameters used for debugging
-        self._photonPackets  = n_photons
         self._montecarloSeed = '0'
         self._fluxProbeDistance = '1 Mpc'
         self._geometryUnits = ' pc' #The space IS intended
@@ -245,7 +249,30 @@ class SkiParams(object):
                 }
         #Return
         self.Basics = Basics
-    
+
+    def __wavelengthBiasDistribution_options(self):
+        result_dic = {
+            'type' : 'WavelengthDistribution',
+        }
+
+        if self._perRegionProbability == 'logWavelength':
+            result_dic['LogWavelengthDistribution'] = {
+                    'minWavelength': str(self._wavelength_min) + ' nm',
+                    'maxWavelength': str(self._wavelength_max) + ' nm'
+                }
+        #elif self._perRegionProbability == 'invLuminosity':
+        #
+        else:
+            raise RuntimeError("Not Implemented!")
+        #{
+        #    'type': 'WavelengthDistribution',
+        #        'LogWavelengthDistribution': {
+        #            'minWavelength': str(self._wavelength_min) + ' nm',
+        #            'maxWavelength': str(self._wavelength_max) + ' nm'
+        #        }
+        #}
+        return result_dic
+
     def __createSources(self,iteration0):
         # =============================================================================
         # SOURCES 
@@ -261,7 +288,7 @@ class SkiParams(object):
                                     }
         
         Sources['SourceSystem']['sources'] = {'type':'Source'}
-        
+
         # STELLAR SOURCES
         n_skirt_sources_count = 0 #star+gas sources.
         
@@ -305,15 +332,8 @@ class SkiParams(object):
                     		                            'wavelength':norm_wl_ii,
                     		                            'unitStyle':'neutralmonluminosity',
                     		                            'specificLuminosity':norm_value_ii} 
-                    		                    }
-                                            #,
-                                            #'wavelengthBiasDistribution':{
-                                            #    'type': 'WavelengthDistribution',
-                                            #    'LogWavelengthDistribution':{
-                                            #        'minWavelength': str(self._wavelength_min) + ' nm',
-                                            #        'maxWavelength': str(self._wavelength_max) + ' nm'
-                                            #        }
-                                            #    }
+                    		                    },
+                                            'wavelengthBiasDistribution':self.__wavelengthBiasDistribution_options()
                     		                }
                     		            }
             elif self._star_geometry[ii][0] == 'ring':
@@ -344,15 +364,8 @@ class SkiParams(object):
                     		                            'wavelength':norm_wl_ii, 
                     		                            'unitStyle':'neutralmonluminosity',
                     		                            'specificLuminosity':norm_value_ii} 
-                    		                    }
-                                            # ,
-                                            # 'wavelengthBiasDistribution':{
-                                            #    'type': 'WavelengthDistribution',
-                                            #    'LogWavelengthDistribution':{
-                                            #        'minWavelength': str(self._wavelength_min) + ' nm',
-                                            #        'maxWavelength': str(self._wavelength_max) + ' nm'
-                                            #        }
-                                            #    }
+                    		                    },
+                                            'wavelengthBiasDistribution':self.__wavelengthBiasDistribution_options()
                     		                }
                     		            }
                 
@@ -388,17 +401,10 @@ class SkiParams(object):
                                                         'wavelength':norm_wl_ii,
                                                         'unitStyle':'neutralmonluminosity',
                                                         'specificLuminosity':norm_value_ii}
-                                                    }
-                                            # ,
-                                            # 'wavelengthBiasDistribution':{
-                                            #    'type': 'WavelengthDistribution',
-                                            #    'LogWavelengthDistribution':{
-                                            #        'minWavelength': str(self._wavelength_min) + ' nm',
-                                            #        'maxWavelength': str(self._wavelength_max) + ' nm'
-                                            #        }
-                                            #    }
-                                                }
+                                                    },
+                                            'wavelengthBiasDistribution':self.__wavelengthBiasDistribution_options()
                                             }
+                                        }
             else:
                 raise RuntimeError("This message should have not appeared!")
         
@@ -454,15 +460,8 @@ class SkiParams(object):
                                                             'wavelength':norm_wl_ii,
                                                             'unitStyle':'neutralmonluminosity',
                                                             'specificLuminosity':norm_value_ii}
-                                                    }
-                                                # ,
-                                                # 'wavelengthBiasDistribution':{
-                                                #    'type': 'WavelengthDistribution',
-                                                #    'LogWavelengthDistribution':{
-                                                #        'minWavelength': str(self._wavelength_min) + ' nm',
-                                                #        'maxWavelength': str(self._wavelength_max) + ' nm'
-                                                #        }
-                                                #    }
+                                                    },
+                                                'wavelengthBiasDistribution':self.__wavelengthBiasDistribution_options()
                                                 }
                                             }
                     
@@ -494,15 +493,8 @@ class SkiParams(object):
                                                             'wavelength':norm_wl_ii,
                                                             'unitStyle':'neutralmonluminosity',
                                                             'specificLuminosity':norm_value_ii}
-                                                    }
-                                                # ,
-                                                # 'wavelengthBiasDistribution':{
-                                                #    'type': 'WavelengthDistribution',
-                                                #    'LogWavelengthDistribution':{
-                                                #        'minWavelength': str(self._wavelength_min) + ' nm',
-                                                #        'maxWavelength': str(self._wavelength_max) + ' nm'
-                                                #        }
-                                                #    }
+                                                    },
+                                                'wavelengthBiasDistribution':self.__wavelengthBiasDistribution_options()
                                                 }
                                             }
                 else:
