@@ -250,7 +250,7 @@ class SkiParams(object):
         #Return
         self.Basics = Basics
 
-    def __wavelengthBiasDistribution_options(self):
+    def __wavelengthBiasDistribution_options(self,filename=None):
         result_dic = {
             'type' : 'WavelengthDistribution',
         }
@@ -260,17 +260,11 @@ class SkiParams(object):
                     'minWavelength': str(self._wavelength_min) + ' nm',
                     'maxWavelength': str(self._wavelength_max) + ' nm'
                 }
-        #elif self._perRegionProbability == 'invLuminosity':
-        #
         else:
-            raise RuntimeError("Not Implemented!")
-        #{
-        #    'type': 'WavelengthDistribution',
-        #        'LogWavelengthDistribution': {
-        #            'minWavelength': str(self._wavelength_min) + ' nm',
-        #            'maxWavelength': str(self._wavelength_max) + ' nm'
-        #        }
-        #}
+            result_dic['FileWavelengthDistribution'] = {
+                'filename': filename
+            }
+
         return result_dic
 
     def __createSources(self,iteration0):
@@ -333,7 +327,7 @@ class SkiParams(object):
                     		                            'unitStyle':'neutralmonluminosity',
                     		                            'specificLuminosity':norm_value_ii} 
                     		                    },
-                                            'wavelengthBiasDistribution':self.__wavelengthBiasDistribution_options()
+                                            'wavelengthBiasDistribution':self.__wavelengthBiasDistribution_options(star_file_ii)
                     		                }
                     		            }
             elif self._star_geometry[ii][0] == 'ring':
@@ -365,7 +359,7 @@ class SkiParams(object):
                     		                            'unitStyle':'neutralmonluminosity',
                     		                            'specificLuminosity':norm_value_ii} 
                     		                    },
-                                            'wavelengthBiasDistribution':self.__wavelengthBiasDistribution_options()
+                                            'wavelengthBiasDistribution':self.__wavelengthBiasDistribution_options(star_file_ii)
                     		                }
                     		            }
                 
@@ -402,7 +396,7 @@ class SkiParams(object):
                                                         'unitStyle':'neutralmonluminosity',
                                                         'specificLuminosity':norm_value_ii}
                                                     },
-                                            'wavelengthBiasDistribution':self.__wavelengthBiasDistribution_options()
+                                            'wavelengthBiasDistribution':self.__wavelengthBiasDistribution_options(star_file_ii)
                                             }
                                         }
             else:
@@ -461,7 +455,7 @@ class SkiParams(object):
                                                             'unitStyle':'neutralmonluminosity',
                                                             'specificLuminosity':norm_value_ii}
                                                     },
-                                                'wavelengthBiasDistribution':self.__wavelengthBiasDistribution_options()
+                                                'wavelengthBiasDistribution':self.__wavelengthBiasDistribution_options(gas_file_ii)
                                                 }
                                             }
                     
@@ -494,7 +488,7 @@ class SkiParams(object):
                                                             'unitStyle':'neutralmonluminosity',
                                                             'specificLuminosity':norm_value_ii}
                                                     },
-                                                'wavelengthBiasDistribution':self.__wavelengthBiasDistribution_options()
+                                                'wavelengthBiasDistribution':self.__wavelengthBiasDistribution_options(gas_file_ii)
                                                 }
                                             }
                 else:

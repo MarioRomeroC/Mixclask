@@ -34,10 +34,11 @@ Options = {
         #'n_paralells': 1, #Number of SEVERAL simulations to be run at once
         'photon_packets':1e8
         'PhotonProbability':{
-            'per_region':'logWavelength' # Available options:'logWavelength'
+            'per_region':'logWavelength' # Available options:'logWavelength','Luminosity'
                 # This option modifies, inside each region, the probability distribution of which a photon of certain wavelength is launched
                 # Available options are:
                 # 'logWavelength': p(λ) ~ 1/λ -> Follows the Logarithmic distribution option given in Skirt
+                # 'Luminosity': p(λ) ~ λL_λ -> Higher (neutral) luminosity, more photons
         }
     },
     'Technical':{
