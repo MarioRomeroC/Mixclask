@@ -33,6 +33,12 @@ Options = {
         'n_threads': 2, #Number of logical cores you want to run for a SINGLE simulation
         #'n_paralells': 1, #Number of SEVERAL simulations to be run at once
         'photon_packets':1e8
+        'PhotonProbability':{
+            'per_region':'logWavelength' # Available options:'logWavelength'
+                # This option modifies, inside each region, the probability distribution of which a photon of certain wavelength is launched
+                # Available options are:
+                # 'logWavelength': p(λ) ~ 1/λ -> Follows the Logarithmic distribution option given in Skirt
+        }
     },
     'Technical':{
         'cloudy_path':'/path/to/your/cloudy/exe',
