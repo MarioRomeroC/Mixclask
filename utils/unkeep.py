@@ -179,3 +179,34 @@ def findNormalization(x_value,x,y):
                 #This route is taken if y is 1d (you give a list, not a 'matrix' as commented above)
                 return np.array([x[i+1],y[i+1]])
     raise RuntimeError("Normalization not found!")
+
+def createProbabilityFile(original_file_path,original_folder,probability_folder='',invert=False):
+    #This creates a probability file from 'original_file'.
+    #For skirt reasons, they need a file with two columns: One for wavelengths, other for its probability density.
+    #Probability density does not need to be normalized, but it needs to be given in luminosity units or skirt crashes.
+
+    original_file = original_file_path.replace(original_folder+'/','')
+    output_name = original_file.replace('.stab','_probability.stab')
+    output_name = output_name.replace('.txt', '_probability.stab')
+    output_name = output_name.replace('.dat', '_probability.stab')
+
+    # Create file header
+    output = open(output_name,'w')
+    output.write("# Column 1: wavelength (nm) \n")
+    output.write("# Column 2: probability density (erg/s) \n")
+    output.write("# luminosity units are required for skirt to work. Probability density has no units \n")
+    # Extract columns
+    columns = readColumn(original_file_path, [0, 1])
+    wavelength = columns[:,0]
+    density = columns[:,1]
+    if invert:
+        density = 1.0/density
+
+    #Write file
+    for l in range(0,len(wavelength)):
+        output.write(str(wavelength[l])+" "+str(density[l])+" \n")
+
+    output.close()
+    #Move output to probability file
+    move(output_name,probability_folder)
+    return probability_folder+'/'+output_name

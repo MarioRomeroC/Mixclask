@@ -10,7 +10,7 @@ Created on Wed Aug 25 11:12:18 2021
 # -*- coding: utf-8 -*-
 from skirt.get_sed import get_from_folder, get_norm, get_norm_wavelength, get_optdepth_norm, get_optdepth_wavelength, get_mass_norm
 from flatten_dict import flatten, unflatten
-from utils.unkeep import relist
+from utils.unkeep import relist,createProbabilityFile
 import numpy as np
 
 def iterate_over_dict(dictionary):
@@ -52,6 +52,7 @@ class SkiParams(object):
         self.__parseData(options_dict['FileParameters']['stars'],'Star')
         
         self.__deduceLimits()
+        self.__deduceLinks()
         self.__checkSkirtIssues()
         self.__Positions = options_dict['FileParameters']['positions']
     
@@ -64,7 +65,7 @@ class SkiParams(object):
         #'ring' geometry = ['ring',R,w,h] -> R=middle radius, w=width, h=height
         #number of gas zones
         self._gas_zones = None
-        
+
         #Geometry STAR params
         self._star_files = []
         self._star_geometry = []
@@ -73,6 +74,11 @@ class SkiParams(object):
         #'point' geometry -> ['point',x,y,z]
         #number of stellar zones
         self._star_zones = None
+        # Are stellar zones related to gas zones?
+        self._stars_gas_link = []
+        # > Index of this array is the stellar zone
+        # > Number inside each value is the index of the gas zone, 'None' is used if stellar region does not have gas counterpart.
+        # > This is to check if some stars are inside gas, for resolution purposes.
     
     def __initFolders(self):   
         #folder locations
@@ -91,6 +97,9 @@ class SkiParams(object):
     def __initPhotons(self,n_photons,probability_dic):
         self._photonPackets = n_photons
         self._perRegionProbability = probability_dic['per_region']
+        self._distributionBias = probability_dic['wavelengthBias']
+        #Details
+        self._probability_folder = 'input_data/probability_distributions'
 
     def __initDetails(self):
         #This function contains parameters used for debugging
@@ -141,7 +150,7 @@ class SkiParams(object):
                 y = self._star_geometry[ii][2]
                 z = self._star_geometry[ii][3]
 
-                if any((sum(x),sum(y),sum(z))) != 0.0:
+                if any((x,y,z)) != 0.0:
                     raise RuntimeError("Sorry, I have not implemented points outside the origin =( ")
                     #It would require a change in the coordinate system used (Cylindrical coordinates are no longer valid)
                     #And to allow that is now low priority
@@ -156,7 +165,78 @@ class SkiParams(object):
         
         self._border_r = str(R_max)+self._geometryUnits
         self._border_z = str(z_max)+self._geometryUnits
-    
+
+    def __deduceLinks(self):
+        #This function checks if stellar zones are related with gas zones.
+        for ii in range(0,self._star_zones): #Per stellar zone
+            if self._star_geometry[ii][0] == 'point':
+                x = self._star_geometry[ii][1]
+                y = self._star_geometry[ii][2]
+                z = self._star_geometry[ii][3]
+                #Check if it is inside a gas zone
+                found_link = False
+                for jj in range(0,self._gas_zones): #Per gas zone
+                    #Compute parameters
+                    r, Rmin, Rmax = None, None, None
+                    if self._gas_geometry[jj][0] == 'shell':
+                        r    = np.sqrt(x*x+y*y+z*z)
+                        Rmin = self._gas_geometry[jj][1]
+                        Rmax = self._gas_geometry[jj][2]
+                    elif self._gas_geometry[jj][0] == 'ring':
+                        r    = np.sqrt(x*x+y*y)
+                        Rmin = self._gas_geometry[jj][1]-self._gas_geometry[jj][2]
+                        Rmax = self._gas_geometry[jj][1]+self._gas_geometry[jj][2]
+                        h    = self._gas_geometry[jj][3]
+                        #false if point is above ring. Skip final if
+                        if abs(z) > h : continue
+                    else: raise RuntimeError("Geometry not implemented")
+                    #Check if related
+                    if r <= Rmax and r >= Rmin:
+                        self._stars_gas_link.append(jj)
+                        found_link = True
+                        break
+            elif self._star_geometry[ii][0] == 'shell':
+                for jj in range(0,self._gas_zones):
+                    Rmin, Rmax, W = None, None, None
+                    r = (self._star_geometry[ii][1] + self._star_geometry[ii][2]) / 2.0
+                    w = (self._star_geometry[ii][2] - self._star_geometry[ii][1])
+                    if self._gas_geometry[jj][0] == 'shell':
+                        Rmin = self._gas_geometry[jj][1]
+                        Rmax = self._gas_geometry[jj][2]
+                        W    = self._gas_geometry[jj][2] - self._gas_geometry[jj][1]
+                    elif self._gas_geometry[jj][0] == 'ring':
+                        continue #A ring is a very small region compared with a shell! There is no point!
+                    else: raise RuntimeError("Geometry not implemented")
+                    #Check if related
+                    if r <= Rmax and r >= Rmin and w <= W:
+                        self._stars_gas_link.append(jj)
+                        found_link = True
+                        break
+            elif self._star_geometry[ii][0] == 'ring':
+                Rmin, Rmax, W = None, None, None
+                r = self._star_geometry[ii][1]
+                w = self._star_geometry[ii][2]
+                h = self._star_geometry[ii][3]
+                for jj in range(0,self._gas_zones):
+                    if self._gas_geometry[jj][0] == 'shell':
+                        Rmin = self._gas_geometry[jj][1]
+                        Rmax = self._gas_geometry[jj][2]
+                        W = self._gas_geometry[jj][2] - self._gas_geometry[jj][1]
+                    elif self._gas_geometry[jj][0] == 'ring':
+                        W = self._gas_geometry[jj][2]
+                        Rmin = self._gas_geometry[jj][1]-W
+                        Rmax = self._gas_geometry[jj][1]+W
+                    #Check if related
+                    if r <= Rmax and r >= Rmin and w <= W:
+                        self._stars_gas_link.append(jj)
+                        found_link = True
+                        break
+            if not found_link:
+                self._stars_gas_link.append(None)
+
+            #And that's it
+
+
     def __checkSkirtIssues(self):
         #(1) If ring geometry is set and some of 'ringRadius' is 0.0
         #   Skirt crashes due they do not accept rings with R=0
@@ -250,20 +330,67 @@ class SkiParams(object):
         #Return
         self.Basics = Basics
 
-    def __wavelengthBiasDistribution_options(self,filename=None):
+    def __wavelengthBiasDistribution_options(self,zone,are_stars=True,iteration0=False):
         result_dic = {
             'type' : 'WavelengthDistribution',
         }
 
-        if self._perRegionProbability == 'logWavelength':
-            result_dic['LogWavelengthDistribution'] = {
+        #Two possible options to write
+        def writeSkirtDefault():
+            subresult = {
                     'minWavelength': str(self._wavelength_min) + ' nm',
                     'maxWavelength': str(self._wavelength_max) + ' nm'
                 }
-        else:
-            result_dic['FileWavelengthDistribution'] = {
+            return subresult
+        def writeFileDefault(filename):
+            subresult = {
                 'filename': filename
             }
+            return subresult
+
+        #First cases in which the default logWavelength distribution from skirt is used
+        if self._perRegionProbability == 'logWavelength' or iteration0:
+            #This fires if
+            #1- 'logWavelength' is selected in main (AccuracyAndSpeed->PhotonProbability->per_region : 'logWavelength')
+            #2- iteration 0
+
+            result_dic['LogWavelengthDistribution'] = writeSkirtDefault()
+        elif self._perRegionProbability == 'Luminosity':
+            filename = ''
+            # Straightforward. Just use the luminosity of each zone
+            if are_stars: filename = (get_from_folder(self._star_sources_folder, self._star_files))[zone]
+            else: filename = (get_from_folder(self._gas_sources_folder))[zone]
+
+            result_dic['FileWavelengthDistribution'] = writeFileDefault(filename)
+        elif self._perRegionProbability == 'invLuminosity':
+            filename = ''
+            folder = ''
+            # Straightforward. Just use the luminosity of each zone
+            if are_stars:
+                folder = self._star_sources_folder
+                filename = (get_from_folder(folder, self._star_files))[zone]
+            else:
+                folder = self._gas_sources_folder
+                filename = (get_from_folder(folder))[zone]
+            #And add this extra step
+            filename = createProbabilityFile(filename,folder,self._probability_folder,invert=True)
+            result_dic['FileWavelengthDistribution'] = writeFileDefault(filename)
+
+        elif are_stars and self._stars_gas_link[zone] is None:
+            #An exception of following options. If region is a stellar one and DO NOT have a gas counterpart, use 'logWavelength' in them
+            result_dic['LogWavelengthDistribution'] = writeSkirtDefault()
+        elif self._perRegionProbability == 'Extinction':
+            # Find the right media_file
+            folder = self._gas_opacity_folder
+            true_zone = self._stars_gas_link[zone] if are_stars else zone #self._gas_gas_link[zone] is not None because it is the previous elif
+            media_file = (get_from_folder(folder))[true_zone]
+
+            #filename = media_file #PLACEHOLDER!
+            filename = createProbabilityFile(media_file,folder,self._probability_folder)
+            result_dic['FileWavelengthDistribution'] = writeFileDefault(filename)
+        else:
+            print("Warning: Probability distribution have not been recognized, using 'logWavelength' option")
+            result_dic['LogWavelengthDistribution'] = writeSkirtDefault()
 
         return result_dic
 
@@ -306,7 +433,7 @@ class SkiParams(object):
                 starSource_properties = {'GeometricSource':{ #This line indicates the type of source it is. Inside this dictionary you have ALL parameters needed for that source
                     		                'velocityMagnitude':'0 km/s', 
                     		                'sourceWeight':"1", 
-                    		                'wavelengthBias':"0.5",
+                    		                'wavelengthBias': self._distributionBias,
                     		                
                     		                'geometry':{
                     		                    'type':'Geometry',
@@ -327,7 +454,7 @@ class SkiParams(object):
                     		                            'unitStyle':'neutralmonluminosity',
                     		                            'specificLuminosity':norm_value_ii} 
                     		                    },
-                                            'wavelengthBiasDistribution':self.__wavelengthBiasDistribution_options(star_file_ii)
+                                            'wavelengthBiasDistribution':self.__wavelengthBiasDistribution_options(ii,iteration0=iteration0)
                     		                }
                     		            }
             elif self._star_geometry[ii][0] == 'ring':
@@ -338,7 +465,7 @@ class SkiParams(object):
                 starSource_properties = {'GeometricSource':{ #This line indicates the type of source it is. Inside this dictionary you have ALL parameters needed for that source
                     		                'velocityMagnitude':'0 km/s', 
                     		                'sourceWeight':"1", 
-                    		                'wavelengthBias':"0.5",
+                    		                'wavelengthBias': self._distributionBias,
                     		                
                     		                'geometry':{
                     		                    'type':'Geometry',
@@ -359,7 +486,7 @@ class SkiParams(object):
                     		                            'unitStyle':'neutralmonluminosity',
                     		                            'specificLuminosity':norm_value_ii} 
                     		                    },
-                                            'wavelengthBiasDistribution':self.__wavelengthBiasDistribution_options(star_file_ii)
+                                            'wavelengthBiasDistribution':self.__wavelengthBiasDistribution_options(ii,iteration0=iteration0)
                     		                }
                     		            }
                 
@@ -376,7 +503,7 @@ class SkiParams(object):
                                             'velocityY': ['0 km/s'],
                                             'velocityZ': ['0 km/s'],
                                             'sourceWeight': '1',
-                                            'wavelengthBias':'0.5',
+                                            'wavelengthBias': self._distributionBias,
                                             'angularDistribution': {
                                                 'type':'AngularDistribution',
                                                 'IsotropicAngularDistribution':None #This is to copy '{}' in the dictionary
@@ -396,7 +523,7 @@ class SkiParams(object):
                                                         'unitStyle':'neutralmonluminosity',
                                                         'specificLuminosity':norm_value_ii}
                                                     },
-                                            'wavelengthBiasDistribution':self.__wavelengthBiasDistribution_options(star_file_ii)
+                                            'wavelengthBiasDistribution':self.__wavelengthBiasDistribution_options(ii,iteration0=iteration0)
                                             }
                                         }
             else:
@@ -434,7 +561,7 @@ class SkiParams(object):
                     gasSource_properties = {'GeometricSource':{
                                                 'velocityMagnitude':'0 km/s', 
                                                 'sourceWeight':"1", 
-                                                'wavelengthBias':"0.5",
+                                                'wavelengthBias': self._distributionBias,
                                                 
                                                 'geometry':{
                                                     'type':'Geometry',
@@ -455,7 +582,7 @@ class SkiParams(object):
                                                             'unitStyle':'neutralmonluminosity',
                                                             'specificLuminosity':norm_value_ii}
                                                     },
-                                                'wavelengthBiasDistribution':self.__wavelengthBiasDistribution_options(gas_file_ii)
+                                                'wavelengthBiasDistribution':self.__wavelengthBiasDistribution_options(ii,are_stars=False,iteration0=iteration0)
                                                 }
                                             }
                     
@@ -467,7 +594,7 @@ class SkiParams(object):
                     gasSource_properties = {'GeometricSource':{
                                                 'velocityMagnitude':'0 km/s', 
                                                 'sourceWeight':"1", 
-                                                'wavelengthBias':"0.5",
+                                                'wavelengthBias': self._distributionBias,
                                                 
                                                 'geometry':{
                                                     'type':'Geometry',
@@ -488,7 +615,7 @@ class SkiParams(object):
                                                             'unitStyle':'neutralmonluminosity',
                                                             'specificLuminosity':norm_value_ii}
                                                     },
-                                                'wavelengthBiasDistribution':self.__wavelengthBiasDistribution_options(gas_file_ii)
+                                                'wavelengthBiasDistribution':self.__wavelengthBiasDistribution_options(ii,are_stars=False,iteration0=iteration0)
                                                 }
                                             }
                 else:

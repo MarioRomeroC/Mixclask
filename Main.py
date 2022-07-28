@@ -32,14 +32,26 @@ Options = {
         #Speed options
         'n_threads': 2, #Number of logical cores you want to run for a SINGLE simulation
         #'n_paralells': 1, #Number of SEVERAL simulations to be run at once
-        'photon_packets':1e8
+        'photon_packets':2e7, #This number determines the number of photon launched in each skirt run.
+            # One important thing to bear in mind that this mainly affects resolution. Less photons more noise in the results (but skirt runs are faster)
+            # Below you find options related to the probability of launching photons, allowing you some control to adapt the output resolution.
         'PhotonProbability':{
-            'per_region':'logWavelength' # Available options:'logWavelength','Luminosity'
+            'per_region':'Extinction', # Available options:'logWavelength','Luminosity','invLuminosity','Extinction'
                 # This option modifies, inside each region, the probability distribution of which a photon of certain wavelength is launched
                 # Available options are:
                 # 'logWavelength': p(λ) ~ 1/λ -> Follows the Logarithmic distribution option given in Skirt
-                # 'Luminosity': p(λ) ~ λL_λ -> Higher (neutral) luminosity, more photons
-        }
+                # 'Luminosity': p(λ) ~ λL_λ -> Higher (neutral) luminosity, more photons (better resolution)
+                # 'invLuminosity' : p(λ) ~ 1/λL_λ -> Lower (neutral) luminosity, more photons
+                # 'Extinction': p(λ) ~ k(λ) -> More opaque media, more photons (better resolution)
+            'wavelengthBias': 0.5, #Between 0 and 1. It controls how many photons launched per region follow above distribution.
+                # 0 makes above option without effect.
+                # 1 makes regions to strictly follow the distribution
+                #   (you risk having some wavelength ranges without photons, so the output will be zero there,
+                #       because the probability was too low to even launch one photon)
+            #'per_simulation':'Default' # (WIP) Available options: 'Default'
+                # This options modifies the probability weight of all regions (so, some regions would launch more photons than others)
+                # Available options are:
+                # 'Default': All regions have same weight.
     },
     'Technical':{
         'cloudy_path':'/path/to/your/cloudy/exe',
