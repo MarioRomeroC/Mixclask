@@ -52,6 +52,7 @@ Options = {
                 # This options modifies the probability weight of all regions (so, some regions would launch more photons than others)
                 # Available options are:
                 # 'Default': All regions have same weight.
+            }
     },
     'Technical':{
         'cloudy_path':'/path/to/your/cloudy/exe',
