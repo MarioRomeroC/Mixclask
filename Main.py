@@ -30,8 +30,8 @@ Options = {
         'convWavelength':[(10.0,90.0),(100e3,300e3)], #nm #Wavelength (value/range) to look convergence
         'tolerance': [0.67,0.10], #(WIP) How much do you want to differ from previous iteration results. Must have the same length as 'convWavelength'
         #Speed options
-        'n_threads': 2, #Number of logical cores you want to run for a SINGLE simulation
-        #'n_paralells': 1, #Number of SEVERAL simulations to be run at once
+        'n_threads': 2, #Number of threads you want to run for a SINGLE simulation in skirt
+        'n_cpus': 1, #Number of simulations to be run at once in CLOUDY
         'photon_packets':2e7, #This number determines the number of photon launched in each skirt run.
             # One important thing to bear in mind that this mainly affects resolution. Less photons more noise in the results (but skirt runs are faster)
             # Below you find options related to the probability of launching photons, allowing you some control to adapt the output resolution.

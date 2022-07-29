@@ -11,12 +11,12 @@ import os
 #import glob
 from utils.unkeep import relist
 import cloudy.ConverterMethods as converter
-#import src.ParserClass as parser
+from multiprocessing import Process
 import numpy as np
 
 class CloudyObject(converter.CloudyToSkirt):
     def __init__(self,options_dict):
-        self.__initEsential()
+        self.__initEsential(options_dict['AccuracyAndSpeed']['n_cpus'])
         self.__initChemistry()
         self.__initWavelengths(options_dict['Wavelength'])
         self.__initDetails()
@@ -29,7 +29,7 @@ class CloudyObject(converter.CloudyToSkirt):
     
     ### INITIALIZATION
     
-    def __initEsential(self):
+    def __initEsential(self,n_cpus = 1):
         
         #Mandatory
         self._sedFiles = []
@@ -40,7 +40,9 @@ class CloudyObject(converter.CloudyToSkirt):
         #Geometry-dependend (not all of them are filled by run)
         self._geometry = [] #Each element of this list contains [Geometry-Type,params]
         #^^For example, [['ring',3,0.5,0.2],['shell',3.5,4.5]] indicates that first zone is a ring with their params, and second zone a shell with their params
-        
+
+        #Number of cpus
+        self._n_cpus = n_cpus if n_cpus>1 else 1
         
     def __initChemistry(self):
         '''
@@ -214,12 +216,37 @@ class CloudyObject(converter.CloudyToSkirt):
             self.__inputs.append(filename.replace('.in','')) #Will be needed for running cloudy
     
     def run_input(self):
+        #Old code
+        '''
         for zone in range(0,len(self.__inputs)):
             currInput = self.__inputs[zone]
             os.system(self.__ExePath+" -r "+currInput)
             if self.__problemDisaster(currInput):
                 self.__errorHandleInput(zone,currInput)
             #else do nothing
+        '''
+        def execute_input(input):
+            os.system(self.__ExePath + " -r " + input)
+            if self.__problemDisaster(input):
+                self.__errorHandleInput(zone, input)
+            # else do nothing
+        n_inputs = len(self.__inputs)
+        n_cpus = self._n_cpus
+        for zone in range(0,n_inputs,n_cpus):
+            currPrograms = []
+            for s in range(0,n_cpus):
+                try: currInput = self.__inputs[zone+s]
+                except IndexError: break #No more inputs
+                p = Process(target=execute_input,args=(currInput,))
+                currPrograms.append(p)
+                p.start()
+
+            #Do not start next iteration until above processes finish!
+            for program in currPrograms:
+                program.join()
+            
+        #And that's it
+
     
     def __writeChemistry(self,file,zone,no_qheat):
         #Mandatory parameters
