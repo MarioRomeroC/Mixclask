@@ -8,6 +8,7 @@ Mario Romero            July 2021
 
 import os
 import numpy as np
+np.seterr(all='raise')
 
 # =============================================================================
 # ROUTINES WITH TERMINAL
@@ -200,7 +201,18 @@ def createProbabilityFile(original_file_path,original_folder,probability_folder=
     wavelength = columns[:,0]
     density = columns[:,1]
     if invert:
-        density = 1.0/density
+        try:
+            density = 1.0/density
+        except FloatingPointError or ZeroDivisionError:
+            #Slow mode removing zeros then...
+            new_wavelength = []
+            new_density = []
+            for i in range(0,len(wavelength)):
+                if density[i] != 0.0:
+                    new_wavelength.append(wavelength[i])
+                    new_density.append(density[i])
+            wavelength = np.array(new_wavelength)
+            density = 1.0/np.array(new_density)
 
     #Write file
     for l in range(0,len(wavelength)):

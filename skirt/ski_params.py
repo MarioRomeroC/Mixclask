@@ -98,6 +98,7 @@ class SkiParams(object):
         self._photonPackets = n_photons
         self._perRegionProbability = probability_dic['per_region']
         self._distributionBias = probability_dic['wavelengthBias']
+        self._customProbabilityFile = probability_dic['customDistributionFile']
         #Details
         self._probability_folder = 'input_data/probability_distributions'
 
@@ -348,8 +349,11 @@ class SkiParams(object):
             }
             return subresult
 
-        #First cases in which the default logWavelength distribution from skirt is used
-        if self._perRegionProbability == 'logWavelength' or iteration0:
+
+        if self._perRegionProbability == 'Custom':
+            result_dic['FileWavelengthDistribution'] = writeFileDefault(self._customProbabilityFile)
+        # If user has not provided its own file, then I first look for cases in which the default logWavelength distribution from skirt is used
+        elif self._perRegionProbability == 'logWavelength' or iteration0:
             #This fires if
             #1- 'logWavelength' is selected in main (AccuracyAndSpeed->PhotonProbability->per_region : 'logWavelength')
             #2- iteration 0

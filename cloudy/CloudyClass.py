@@ -244,8 +244,6 @@ class CloudyObject(converter.CloudyToSkirt):
             #Do not start next iteration until above processes finish!
             for program in currPrograms:
                 program.join()
-            
-        #And that's it
 
     
     def __writeChemistry(self,file,zone,no_qheat):
