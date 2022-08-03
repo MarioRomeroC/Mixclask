@@ -225,10 +225,10 @@ class CloudyObject(converter.CloudyToSkirt):
                 self.__errorHandleInput(zone,currInput)
             #else do nothing
         '''
-        def execute_input(input):
+        def execute_input(input,region):
             os.system(self.__ExePath + " -r " + input)
             if self.__problemDisaster(input):
-                self.__errorHandleInput(zone, input)
+                self.__errorHandleInput(region, input)
             # else do nothing
         n_inputs = len(self.__inputs)
         n_cpus = self._n_cpus
@@ -237,7 +237,7 @@ class CloudyObject(converter.CloudyToSkirt):
             for s in range(0,n_cpus):
                 try: currInput = self.__inputs[zone+s]
                 except IndexError: break #No more inputs
-                p = Process(target=execute_input,args=(currInput,))
+                p = Process(target=execute_input,args=(currInput,zone+s))
                 currPrograms.append(p)
                 p.start()
 

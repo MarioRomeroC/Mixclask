@@ -12,10 +12,16 @@ import time
 # Other options
 Options = {
     'FileParameters':{
-        # Where are the gas and star parameters starting from this folder?
-        'stars': 'input_data/params/Your_star_file.dat',
+        'stars':{
+            # Where is the star parameter file?
+            'file': 'input_data/params/Your_star_file.dat',
+            # And the folder containing the SED of each stellar region?
+           'folder': 'input_data/star_sources'
+        },
+        # Where is the ISM parameter file?
         'ISM': 'input_data/params/Your_gas_file.dat',
-        'positions': 'input_data/Output_Positions/Your_positions.txt' #At what positions (x,y,z) do you want some outputs?
+        # At what positions (x,y,z) do you want some outputs?
+        'positions': 'input_data/Output_Positions/Your_positions.txt'
     },
     'Wavelength':{ #Wavelength related options.
         #Resolution and wavelength range are specified here
@@ -25,23 +31,36 @@ Options = {
         #Other wavelength options
         'normalization': 550.0, #nm -> This is used to normalize Skirt sources luminosity for ISM sources
     },
+    'Convergence':{
+        'Criteria': 'Both', #Options: 'Previous', 'Variance', 'Both'
+        #Avaiable options are :
+        # 'Previous': |new-old| < tolerance * (new+old)/2
+        # 'Variance': variance/mean^2 < tolerance^2
+        # 'Both': uses both
+        #These are checked for all keys below and all regions in the parameters file at the beginning.
+        #new represents the result at current iteration, and old at previous iteration
+        #Name of the keys below is not relevant (i.e.: You can change 'GasAbsorptionRange' to 'YourFavoriteName' freely)
+        'GasAbsorptionRange':{
+            'wavelengthRange':(10.0,90.0), #nm #Wavelength (value/range) to look convergence
+            'tolerance': 0.10 #~Relative error you desire
+        },
+        'DustEmissionRange':{
+            'wavelengthRange': (100e3,300e3), #nm #Wavelength (value/range) to look convergence
+            'tolerance': 0.10 #~Relative error you desire
+        },
+    },
     'AccuracyAndSpeed':{
-        #Convergence options
-        'convWavelength':[(10.0,90.0),(100e3,300e3)], #nm #Wavelength (value/range) to look convergence
-        'tolerance': [0.67,0.10], #(WIP) How much do you want to differ from previous iteration results. Must have the same length as 'convWavelength'
         #Speed options
-        'n_threads': 2, #Number of threads you want to run for a SINGLE simulation in skirt
-        'n_cpus': 1, #Number of simulations to be run at once in CLOUDY
+        'n_threads': 2, #Number of logical cores you want to run for a SINGLE simulation in skirt
+        'n_cpus': 2, #Number of simulations to be run at once in CLOUDY
         'photon_packets':2e7, #This number determines the number of photon launched in each skirt run.
             # One important thing to bear in mind that this mainly affects resolution. Less photons more noise in the results (but skirt runs are faster)
             # Below you find options related to the probability of launching photons, allowing you some control to adapt the output resolution.
         'PhotonProbability':{
-            'per_region':'invLuminosity', # Available options:'logWavelength','Luminosity','invLuminosity','Extinction'
+            'per_region':'logWavelength', # Available options:'logWavelength','Extinction','Custom'
                 # This option modifies, inside each region, the probability distribution of which a photon of certain wavelength is launched
                 # Available options are:
                 # 'logWavelength': p(λ) ~ 1/λ -> Follows the Logarithmic distribution option given in Skirt
-                # 'Luminosity': p(λ) ~ λL_λ -> Higher (neutral) luminosity, more photons (better resolution)
-                # 'invLuminosity' : p(λ) ~ 1/λL_λ -> Lower (neutral) luminosity, more photons
                 # 'Extinction': p(λ) ~ k(λ) -> More opaque media, more photons (better resolution)
                 # 'Custom': p(λ) ~ f(λ) -> Given by the user below (used for ALL regions)
             'customDistributionFile': 'input_data/probability_distributions/YourFile.stab',
@@ -60,8 +79,9 @@ Options = {
             # If false, you should have the results of the radiation field of a previous run in root folder (same as this file)
             #  For the latter case, it is useful if you want to do more iterations than originally intended.
         # Debugging
-        'n_iterations': 15, #Max number of iterations to perform (Note that this is to avoid an infinite loop, and a warning will be given if Mixclask stops this way)
-        'show_cloudy_params': False
+        'n_iterations': 4, #Max number of iterations to perform (Note that this is to avoid an infinite loop. A warning will be given if Mixclask stops this way)
+        'show_cloudy_params': False,
+        'show_convergence_data': True
     }
 }
 
@@ -70,7 +90,7 @@ Options = {
 t_start = time.time()
 cloudy = cc.CloudyObject(Options)
 skirt_params = SkiParams(Options)
-program = conv.ConvergenceObject(cloudy.giveSEDfiles(),Options)#WavelengthOptions['convWavelength'],n_iterations,tolerance)
+program = conv.ConvergenceObject(cloudy.giveSEDfiles(),Options)
 
 ### ITERATION 0 ###
 if Options['Technical']['is_iteration0']:
@@ -91,27 +111,28 @@ if Options['Technical']['is_iteration0']:
 
 ### FOLLOWING ITERATIONS ###
 t_it = time.time()
+#raise RuntimeError("TEST STOP, EVERYTHING OK")
 while(not program.stop()):
     # =============================================================================
     # Create cloudy
     # =============================================================================
     
     folder = "iteration"+str(program.iteration(t_it-t_start))
-    
+
+    #TESTING COMMENT
     cloudy.make_input()
     
     cloudy.run_input()
     
     cloudy.GenerateSkirtInput()
     
-    #Save the data in a separate folder    
+    #Save the data in a separate folder
     print("Moving cloudy data to "+folder)
     os.system("mkdir "+folder)
     os.system("mv *.txt -t "+folder)
     os.system("cp *.stab -t "+folder) #copy and then move
     os.system("mv *.in -t "+folder)
     os.system("mv *.out -t"+folder)
-    
     #Move the relevant data to 'input_data' folder
     move("MeanFileGasMix_*.stab","input_data/gas_props")
     move("GasSource_*.stab","input_data/gas_sources")
@@ -127,8 +148,7 @@ while(not program.stop()):
     os.system("skirt -t "+str(Options['AccuracyAndSpeed']['n_threads'])+" skirt_file.ski > tmp.txt") #Make sure you followed skirt instructions
     
     cloudy.GenerateCloudyFiles("skirt_file_nuJnu_J.dat")
-    
-    
+
     print("Moving skirt data to "+folder+" \n")
     os.system("mv *.dat -t "+folder)
     os.system("cp *.sed -t "+folder) #copy because I need these files in the root folder
@@ -139,6 +159,6 @@ while(not program.stop()):
     
 # iteration0 -> while[skirt -> conversion1 -> cloudy -> conversion2 -> check convergence]
 if Options['Technical']['show_cloudy_params']: cloudy.showParams()
+if Options['Technical']['show_convergence_data']: program.showDiagnostics()
 t_end = time.time()
 print("Program finished! ("+str(t_end-t_start)+" s) \n")
-

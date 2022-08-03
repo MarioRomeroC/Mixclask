@@ -39,8 +39,7 @@ With the stellar spectra files, the stellar input data is, for example:
 >file1.stab [’point’,0.0,0.0,0.0]
 >file2.stab [’ring’,1.0,0.1,0.2]
 >file3.stab [’shell’,2.0,3.0] 
-Mixclask consider each row a different region with different data. SedFile is the spectra filename, LOCATED INSIDE 'input_data/star_sources'.
-This direction can be changed in skirt/ski_params.py file, in the variable 'self._star_sources_folder' .
+Mixclask consider each row a different region with different data. SedFile is the spectra filename, LOCATED INSIDE A FOLDER NAMED 'input_data/star_sources' by default.
 
 Geometry is a python-list containing their geometry and its parameters (separated by commas).
 For stars, you have three options.
@@ -98,50 +97,100 @@ Once you have all input files, next you have to enter in 'Main.py'.
 There, you find a dictionary called 'Options', subdivided in several dictionaries representing a category.
 First, you need to configure these lines:
 >'FileParameters':{
->    'gas_params':'input_data/params/Your_gas_file.dat',
->    'star_params':'input_data/params/Your_star_file.dat',  
->    'positions':'input_data/Output_Positions/Your_positions.txt'
->},
-These contains the location of the input data files explained above.
+>        'stars':{
+>            # Where is the star parameter file?
+>            'file': 'input_data/params/Your_star_file.dat',
+>            # And the folder containing the SED of each stellar region?
+>           'folder': 'input_data/star_sources'
+>        },
+>        # Where is the ISM parameter file?
+>        'ISM': 'input_data/params/Your_gas_file.dat',
+>        # At what positions (x,y,z) do you want some outputs?
+>        'positions': 'input_data/Output_Positions/Your_positions.txt'
+>    },
+These contain the location of the input data files explained above.
 
 Next, you set the wavelength resolution:
 >'Wavelength':{ #Wavelength related options.
->    #Resolution and wavelength range are specified here
->    'maxWavelength':3.0e5, #nm
->    'minWavelength':10.0, #nm
->    'resolution':200, #Equispaced in log
->    #Other wavelength options
->    'normalization': 550.0, #nm -> This is used to normalize Skirt sources luminosity for ISM sources
->},
-The wavelength range is defined with 'maxWavelength' and 'minWavelength', and the number of points between them with 'resolution'. Points are equispaced logarithmically.
+>        #Resolution and wavelength range are specified here
+>        'maxWavelength':3.0e5, #nm
+>        'minWavelength':10.0, #nm
+>        'resolution':200, #Equispaced in log
+>        #Other wavelength options
+>        'normalization': 550.0, #nm -> This is used to normalize Skirt sources luminosity for ISM sources
+>    },
+The wavelength range is defined with 'maxWavelength' and 'minWavelength', and the number of points, given in outputs, between them with 'resolution'. Points are equispaced logarithmically.
 As other options, 'normalization' is the normalization wavelength of the ISM emission spectra files that Mixclask generates. Although any number between 'maxWavelength' and 'minWavelength' works, I recommend to use the same wavelength used for stellar spectra files for consistency.
 
-Then, you have options related with convergence and speed
+Then, you have options related with convergence:
+>'Convergence':{
+>        'Criteria': 'Both', #Options: 'Previous', 'Variance', 'Both'
+>        #Avaiable options are :
+>        # 'Previous': |new-old| < tolerance * (new+old)/2
+>        # 'Variance': variance/mean^2 < tolerance^2
+>        # 'Both': uses both
+>        #These are checked for all keys below and all regions in the parameters file at the beginning.
+>        #new represents the result at current iteration, and old at previous iteration
+>        #Name of the keys below is not relevant (i.e.: You can change 'GasAbsorptionRange' to 'YourFavoriteName' freely)
+>        'GasAbsorptionRange':{
+>            'wavelengthRange':(10.0,90.0), #nm #Wavelength (value/range) to look convergence
+>            'tolerance': 0.10 #~Relative error you desire
+>        },
+>        'DustEmissionRange':{
+>            'wavelengthRange': (100e3,300e3), #nm #Wavelength (value/range) to look convergence
+>            'tolerance': 0.10 #~Relative error you desire
+>        },
+>    },
+There, you have one fixed key called 'Criteria', and then several keys telling what ranges do you want to look.
+By convengence, Mixclask understands that the mean intensity should not vary between current and previous iterations for EACH ISM REGION AND EACH KEY INSIDE 'Convergence'.
+For each key not called 'Criteria', you provide two parameters:
+-'wavelengthRange' is the range or value where Mixclask looks for convergence. If you give a list/tuple, it will compute the integral of 4π*λ*J in that range. If it is a float, then it will be the associated value of 4π*λ*J at that wavelength
+-'tolerance' is roughly the relative error you desire. See how works 'Criteria' below for more details.
+You can add and remove keys at your heart content. For example, if I want to force convergence in the B-Band with a tolerance of 0.2, you simply add next key (below the '},' of 'DustEmissionRange', for instance):
+> 'B-Band':{ #You can use any name you want, as long as it is not 'Criteria'
+>     'wavelengthRange': 440.0,
+>     'tolerance': 0.2
+> },
+
+'Criteria' is the convergence rule Mixclask will follow.
+-'Previous' evaluates this expression:
+> |(This iteration) - (Prev. iteration)| <= tolerance*[(This iteration) + (Prev. iteration)]/2
+This iteration (or 'new') and prev iteration (or 'old') refer to the integral/value of 4π*λ*J given in 'wavelengthRange'
+-'Variance' computes the mean and variance of convergence results (i.e.: integral/value of 4π*λ*J given in 'wavelengthRange') considering 'this iteration' and all previous iterations with stars and gas (i.e.: all but the very first one, called iteration 0 in the code). Then it checks:
+> variance < (tolerance*mean)^2
+-'Both' considers both criteria, and both need to be fulfilled in order to reach convergence.
+
+After that, you have options related with accuracy and speed
 >'AccuracyAndSpeed':{
->    #Convergence options
->    'convWavelength':[(10.0,90.0),(100e3,300e3)], #nm #Wavelength (value/range) to look convergence
->    'tolerance': [0.67,0.10], #(WIP) How much do you want to differ from previous iteration results. Must have the same length as 'convWavelength'
->    #Speed options
->    'n_threads': 2, #Number of logical cores you want to run for a SINGLE simulation
->    'photon_packets':1e8
->},
-First, 'convWavelength' is the set of wavelengths, or wavelength ranges, in which Mixclask will check for convergence.
-You can provide a list such as, for example:
->'convWavelength':[(10,90),300,(500,600),150e3]
-With this list, Mixclask will check convergence in:
-1-the range between 10 to 90 nm
-2-300 nm
-3-Range between 500 to 600 nm
-4-150e3 nm
-By convengence, Mixclask understands that the mean intensity should not vary between current and previous iterations for EACH ISM REGION AND EACH ELEMENT OF THE LIST (one or two elements in the list may be enough).
-That is, the value does not change when you provide a single wavelength (300 and 150e3 nm, in this case), or the integral in the range provided does not change (for (10,90) and (500,600) elements).
-The maximum amount allowed to change is given in 'tolerance'. 
-For example, if 'convWavelength' = [(10.0,90.0),(100e3,300e3)] and tolerance = [0.67,0.10], Mixclask will check tolerance = 0.67 for the (10.0,90.0) nm range, and 0.1 for the (100e3,300e3) nm . 
-Convergence is evaluated with this expression: 
-> |(This iteration) - (Prev. iteration)| <= tolerance*[(This iteration) + (Prev. iteration)]/2 
-for all ISM regions and wavelengths given in the ISM file and 'convWavelength', respectively
-On the other hand, 'n_threads' and 'photon_packets' are parameters needed for skirt. The former is the number of task that your cpu will use for executing this code (usually, n_threads = 2*n_cpu).
-The latter is the number of photons used in the Montecarlo simulation of skirt, the bigger the number, less noiser the results (but also slower).
+>        #Speed options
+>        'n_threads': 2, #Number of logical cores you want to run for a SINGLE simulation in skirt
+>        'n_cpus': 2, #Number of simulations to be run at once in CLOUDY
+>        'photon_packets':2e7, #This number determines the number of photon launched in each skirt run.
+>            # One important thing to bear in mind that this mainly affects resolution. Less photons more noise in the results (but skirt runs are faster)
+>            # Below you find options related to the probability of launching photons, allowing you some control to adapt the output resolution.
+>        'PhotonProbability':{
+>            'per_region':'logWavelength', # Available options:'logWavelength','Extinction','Custom'
+>                # This option modifies, inside each region, the probability distribution of which a photon of certain wavelength is launched
+>                # Available options are:
+>                # 'logWavelength': p(λ) ~ 1/λ -> Follows the Logarithmic distribution option given in Skirt
+>                # 'Extinction': p(λ) ~ k(λ) -> More opaque media, more photons (better resolution)
+>                # 'Custom': p(λ) ~ f(λ) -> Given by the user below (used for ALL regions)
+>            'customDistributionFile': 'input_data/probability_distributions/YourFile.stab',
+>            'wavelengthBias': 0.5 #Between 0 and 1. It controls how many photons launched per region follow above distribution.
+>                # 0 makes above option without effect.
+>                # 1 makes regions to strictly follow the distribution
+>                #   (you risk having some wavelength ranges without photons, so the output will be zero there,
+>                #       because the probability was too low to even launch one photon)
+>        }
+>    },
+Explanations are quite straightforward. The only thing you need to know is that 'PhotonProbability' are options related with the probatility (density) of launching one photon with some wavelength, and refer to each stellar and ISM region given. The structure of 'custonDistributionFile' is similar to the input required for stellar spectra, that is:
+># Column 1: Wavelength (nm) 
+># Column 2: Probability density (erg/s) 
+>10 1
+>20 2
+> ...
+The units in 'Column 2' are required because Skirt complains otherwise, and you do not need to normalize the distribution: Skirt does it for you.
+See https://skirt.ugent.be/skirt9/class_file_wavelength_distribution.html for more details
 
 Finally, you also have 'Technical' options. The only one you have to touch is
 > 'cloudy_path':'/path/to/your/cloudy/exe' 

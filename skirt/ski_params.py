@@ -44,12 +44,12 @@ class SkiParams(object):
     def __init__(self,options_dict):#gas_path,star_path,output_positions,wavelength_dict):
         self.__initParams()
         self.__initWavelengths(options_dict['Wavelength'])
-        self.__initFolders()
+        self.__initFolders(options_dict['FileParameters']['stars']['folder'])
         self.__initPhotons(options_dict['AccuracyAndSpeed']['photon_packets'],options_dict['AccuracyAndSpeed']['PhotonProbability'])
         self.__initDetails()
         
         self.__parseData(options_dict['FileParameters']['ISM'],'Gas')
-        self.__parseData(options_dict['FileParameters']['stars'],'Star')
+        self.__parseData(options_dict['FileParameters']['stars']['file'],'Star')
         
         self.__deduceLimits()
         self.__deduceLinks()
@@ -80,13 +80,13 @@ class SkiParams(object):
         # > Number inside each value is the index of the gas zone, 'None' is used if stellar region does not have gas counterpart.
         # > This is to check if some stars are inside gas, for resolution purposes.
     
-    def __initFolders(self):   
+    def __initFolders(self,folder_path):
         #folder locations
         # DO NOT CHANGE THESE PARAMETERS, THEY ARE HARDCODED BECAUSE CLOUDY MOVES THE FILES THERE
         self._gas_opacity_folder  = "input_data/gas_props"
         self._gas_sources_folder  = "input_data/gas_sources"
-        # Except next one, you can locate this wherever you want
-        self._star_sources_folder = "input_data/star_sources"
+        # Except next one. As you see, you can define its path in Main.py
+        self._star_sources_folder = folder_path #"input_data/star_sources"
     
     def __initWavelengths(self,wavelength_dict):
         self._wavelength_max  = wavelength_dict['maxWavelength']
