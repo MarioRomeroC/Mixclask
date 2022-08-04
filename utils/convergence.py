@@ -104,7 +104,7 @@ class ConvergenceObject(object):
         #Check convergence
         has_converged = None
         #To have a True as a result, you need that ALL ZONES PER ALL KEYS converge according to the convergence criteria defined in Main.py
-        if self.n_iterations < 1:
+        if self.n_iterations <= 1:
             has_converged = False #iteration 0 or 1.
             print("Too soon to check convergence. I will iterate again.")
         else:
@@ -156,7 +156,7 @@ class ConvergenceObject(object):
     # TESTING
     def showDiagnostics(self,filename='convergenceDiagnostics.dat'):
         output = open(filename,'w')
-        output.write("# I stopped after "+str(self.n_iterations)+" of "+str(self.__max_iterations)+" .\n")
+        output.write("# I stopped after "+str(self.n_iterations-1)+" of "+str(self.__max_iterations)+" iterations.\n")
         output.write("# Convergence criteria is "+self.__criteria+"\n")
         output.write("# Number of zones : "+str(self.__n_zones)+"\n")
         for key in range(0,len(self.__names)):
@@ -166,13 +166,28 @@ class ConvergenceObject(object):
             output.write("#    Tolerance   : "+str(self.__tolerances[key])+"\n")
         for ii in range(0,self.n_iterations):
             output.write("##########################################\n")
-            output.write("ITERATION "+str(self.n_iterations)+"\n")
+            output.write("ITERATION "+str(ii)+"\n")
             output.write("##########################################\n")
             for key in range(0,len(self.__names)):
                 output.write("# "+self.__names[key]+":\n")
                 output.write("Convergence data : "+str(self.__convResults[key,ii,:,0])+"\n")
                 output.write("Means : "+str(self.__convResults[key,ii,:,1])+"\n")
                 output.write("Variances : "+str(self.__convResults[key,ii,:,2])+"\n")
+                if self.__criteria == 'Previous' or self.__criteria == 'Both':
+                    output.write("'Previous' obtained tolerance : ")
+                    if ii > 1:
+                        result = 2.0*abs(  self.__convResults[key,ii,:,0] - self.__convResults[key,ii-1,:,0] ) \
+                                 / (self.__convResults[key,ii,:,0] + self.__convResults[key,ii-1,:,0])
+                    else:
+                        output.write("[ ")
+                        for z in range(0, self.__n_zones): output.write("NaN, ")
+                        output.write("]")
+                    output.write("\n")
+
+                if self.__criteria == 'Variance' or self.__criteria == 'Both':
+                    output.write("'Variance' obtained tolerance : ")
+                    results = np.sqrt(self.__convResults[key,ii,:,2]) / self.__convResults[key,ii,:,1]
+                    output.write(str(results)+"\n")
 
         output.write("##########################################\n")
         output.write("That's all!")
