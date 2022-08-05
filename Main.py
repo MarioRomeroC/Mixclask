@@ -79,7 +79,10 @@ Options = {
             # If false, you should have the results of the radiation field of a previous run in root folder (same as this file)
             #  For the latter case, it is useful if you want to do more iterations than originally intended.
         # Debugging
-        'n_iterations': 4, #Max number of iterations to perform (Note that this is to avoid an infinite loop. A warning will be given if Mixclask stops this way)
+        'n_iterations': 15, #Max number of iterations to perform (Note that this is to avoid an infinite loop. A warning will be given if Mixclask stops this way)
+        'iteration_to_start_convergence': 2,
+            #Previous iterations won't be used to check convergence.
+            #  This is useful if you want to use 'Variance' Criteria, or to generate an average to avoid biases
         'show_cloudy_params': False,
         'show_convergence_data': True
     }
@@ -111,7 +114,6 @@ if Options['Technical']['is_iteration0']:
 
 ### FOLLOWING ITERATIONS ###
 t_it = time.time()
-#raise RuntimeError("TEST STOP, EVERYTHING OK")
 while(not program.stop()):
     # =============================================================================
     # Create cloudy

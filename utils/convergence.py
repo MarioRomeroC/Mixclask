@@ -15,6 +15,7 @@ class ConvergenceObject(object):
     def __init__(self,SED_files,options_dict):
         #Store some internal parameters first
         self.n_iterations = 0
+        self.__start_iteration = options_dict['Technical']['iteration_to_start_convergence']
         self.__max_iterations = options_dict['Technical']['n_iterations']
         self.__pointers = SED_files #These are the filenames to extract info from it
         self.__n_zones = len(self.__pointers)
@@ -84,7 +85,7 @@ class ConvergenceObject(object):
                 curr_result = computeData(key,zone)
                 self.__convResults[key][self.n_iterations][zone][0] = curr_result
                 if self.__criteria != 'Previous': #Neither mean or variance are used for this criterion, so why should I add another loop?
-                    if self.n_iterations > 1:
+                    if self.n_iterations > self.__start_iteration:
                         mean_until_now = (self.n_iterations-1)/self.n_iterations * \
                                          self.__convResults[key][self.n_iterations-1][zone][1] + \
                                          self.__convResults[key][self.n_iterations][zone][0] /self.n_iterations
@@ -95,7 +96,7 @@ class ConvergenceObject(object):
                             suma += ( curr_result - mean_until_now ) * ( curr_result - mean_until_now )
                         variance_until_now = suma / (self.n_iterations-1.0)
                         self.__convResults[key][self.n_iterations][zone][2] = variance_until_now
-                    elif self.n_iterations > 0:
+                    elif self.n_iterations == self.__start_iteration:
                         self.__convResults[key][self.n_iterations][zone][1] = curr_result
                         self.__convResults[key][self.n_iterations][zone][2] = np.infty
                     #else do nothing. No point in computing means and variances, they will be kept as NaN.
@@ -104,8 +105,8 @@ class ConvergenceObject(object):
         #Check convergence
         has_converged = None
         #To have a True as a result, you need that ALL ZONES PER ALL KEYS converge according to the convergence criteria defined in Main.py
-        if self.n_iterations <= 1:
-            has_converged = False #iteration 0 or 1.
+        if self.n_iterations <= self.__start_iteration:
+            has_converged = False
             print("Too soon to check convergence. I will iterate again.")
         else:
             abort = False  # Changes to True when next lines find a zone for a key that has not converged yet
@@ -146,9 +147,10 @@ class ConvergenceObject(object):
             print("I am doing this to avoid an infinite loop.")
             print("Check if tolerance is too low for the montecarlo noise.")
             print("If you want to improve resolution, try to:")
-            print("-Increase the number of photon packets")
-            print("-Bias the probability distribution in those wavelength ranges you have more noise")
-            print("-Do more iterations to converge due to central limit theorem")
+            print("-Increase the number of photon packets.")
+            print("-Bias the probability distribution in those wavelength ranges you have more noise.")
+            print("-Do more iterations to converge due to central limit theorem.")
+            print("-Check relative errors of 'Average_*.sed', or run utils/output.py if you haven't to generate these files.")
             has_converged = True
 
         return has_converged
@@ -175,9 +177,10 @@ class ConvergenceObject(object):
                 output.write("Variances : "+str(self.__convResults[key,ii,:,2])+"\n")
                 if self.__criteria == 'Previous' or self.__criteria == 'Both':
                     output.write("'Previous' obtained tolerance : ")
-                    if ii > 1:
+                    if ii > self.__start_iteration:
                         result = 2.0*abs(  self.__convResults[key,ii,:,0] - self.__convResults[key,ii-1,:,0] ) \
                                  / (self.__convResults[key,ii,:,0] + self.__convResults[key,ii-1,:,0])
+                        output.write(str(result)+"\n")
                     else:
                         output.write("[ ")
                         for z in range(0, self.__n_zones): output.write("NaN, ")

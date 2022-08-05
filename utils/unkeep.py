@@ -146,7 +146,7 @@ def readColumn(filename,column):
         elif line[0] == '#': continue #commented line
         
         line_data = line.split()
-        if not isinstance(column,list):
+        if not isinstance(column,(list,tuple)):
             data.append(float(line_data[column]))
         else:
             row = [float(line_data[col]) for col in column]

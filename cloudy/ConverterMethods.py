@@ -41,14 +41,12 @@ class CloudyToSkirt(object): #I need read_config
             nuLnu = self._getLuminosity(spectra_name, rho, z, wavelength_array)
             #unk.testDownsample(unk.mean(self.__lambda),nuLnu,unk.mean(self.__lambda),nuLnu*optical_depth_data[3])
             tau_shell = optical_depth_data[0]
-            #massExtinctionCoeff = optical_depth_data[1]
-            #albedo = optical_depth_data[2
             try:
                 #Correct for self-absorption.
                 nuLnu_corrected = nuLnu * tau_shell / ( 1. - np.exp(-tau_shell) ) #optical_depth_data[3]
                 nuLnu = nuLnu_corrected
             except FloatingPointError:
-                print("Warning: undeflow encountered in exp(-tau) in zone "+str(z))
+                #print("Warning: undeflow encountered in exp(-tau) in zone "+str(z))
                 nuLnu_corrected = np.empty(len(tau_shell))
                 for t in range(0,len(tau_shell)):
                     exp_order_of_magnitude = -tau_shell[t] / np.log(10.0) # =log10(exp(-tau))
@@ -337,7 +335,7 @@ class CloudyToSkirt(object): #I need read_config
                     fluxfile.write("# nuf(nu) "+str(self.round_to(n_digits,np.log10(fixed_nuF)))+" at "+str(photon_energy)+" #("+str(fixed_wavelength)+" nm) \n")
                 except OverflowError:
                     print(R,fixed_wavelength,fixed_nuF)
-                    raise RuntimeError("Overflow error. Have you check that skirt grid boundaries is higher than your wanted output positions?")
+                    raise RuntimeError("Overflow error. Have you checked that skirt grid boundaries are higher than your wanted output positions?")
                 
             options_written = False
             for j in range(len(nuJnu[i])-1,0,-1):
