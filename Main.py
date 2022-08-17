@@ -32,11 +32,12 @@ Options = {
         'normalization': 550.0, #nm -> This is used to normalize Skirt sources luminosity for ISM sources
     },
     'Convergence':{
-        'Criteria': 'Both', #Options: 'Previous', 'Variance', 'Both'
+        'Criteria': 'Statistic', #Options: 'Previous', 'Variance', 'Statistic', 'All'
         #Avaiable options are :
         # 'Previous': |new-old| < tolerance * (new+old)/2
         # 'Variance': variance/mean^2 < tolerance^2
-        # 'Both': uses both
+        # 'Statistic': sqrt(variance/N) < tolerance*mean
+        # 'All': uses all of above
         #These are checked for all keys below and all regions in the parameters file at the beginning.
         #new represents the result at current iteration, and old at previous iteration
         #Name of the keys below is not relevant (i.e.: You can change 'GasAbsorptionRange' to 'YourFavoriteName' freely)

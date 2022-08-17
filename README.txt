@@ -124,11 +124,12 @@ As other options, 'normalization' is the normalization wavelength of the ISM emi
 
 Then, you have options related with convergence:
 >'Convergence':{
->        'Criteria': 'Both', #Options: 'Previous', 'Variance', 'Both'
+>        'Criteria': 'Statistic', #Options: 'Previous', 'Variance', 'Statistic', 'All'
 >        #Avaiable options are :
 >        # 'Previous': |new-old| < tolerance * (new+old)/2
 >        # 'Variance': variance/mean^2 < tolerance^2
->        # 'Both': uses both
+>        # 'Statistic': sqrt(variance/N) < tolerance*mean
+>        # 'All': uses all of above
 >        #These are checked for all keys below and all regions in the parameters file at the beginning.
 >        #new represents the result at current iteration, and old at previous iteration
 >        #Name of the keys below is not relevant (i.e.: You can change 'GasAbsorptionRange' to 'YourFavoriteName' freely)
@@ -158,7 +159,9 @@ You can add and remove keys at your heart content. For example, if I want to for
 This iteration (or 'new') and prev iteration (or 'old') refer to the integral/value of 4π*λ*J given in 'wavelengthRange'
 -'Variance' computes the mean and variance of convergence results (i.e.: integral/value of 4π*λ*J given in 'wavelengthRange') considering 'this iteration' and all previous iterations with stars and gas (i.e.: all but the very first one, called iteration 0 in the code). Then it checks:
 > variance < (tolerance*mean)^2
--'Both' considers both criteria, and both need to be fulfilled in order to reach convergence.
+-'Statistic' is a alternative to 'Variance', the only difference is the final evaluation, that is:
+> sqrt(variance/N) < tolerance*mean
+-'All' considers all criteria, and all need to be fulfilled in order to reach convergence.
 
 After that, you have options related with accuracy and speed
 >'AccuracyAndSpeed':{
