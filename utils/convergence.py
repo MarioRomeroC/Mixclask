@@ -32,6 +32,8 @@ class ConvergenceObject(object):
         0 : Result computed with 'computeData' function below
         1 : Mean of 0 for all x[fixed_key][][fixed_zone][0] between iteration 1 and current iteration.
         2 : Variance of 0 for all x[fixed_key][][fixed_zone][0] between iteration 1 and current iteration.
+        3 : Median of 0 for all x[fixed_key][][fixed_zone][0] between iteration 1 and current iteration.
+        4 : x84-x16 of 0 for all x[fixed_key][][fixed_zone][0] between iteration 1 and current iteration (x84 and x16 are percentiles 84 and 16).
         Iteration 0 is skipped because there is no gas in it
         '''
         n_quantities = len(conv_dict)-1
@@ -44,7 +46,7 @@ class ConvergenceObject(object):
             self.__tolerances.append(conv_dict[key]['tolerance'])
             self.__wlRanges.append(conv_dict[key]['wavelengthRange'])
 
-        self.__convResults = np.nan*np.ones((n_quantities,self.__max_iterations+1,self.__n_zones,3)) #I init to NaN to indentify not filled data
+        self.__convResults = np.nan*np.ones((n_quantities,self.__max_iterations+1,self.__n_zones,5)) #I init to NaN to indentify not filled data
         #max_iterations+1 because you still have to consider iteration0 (the one without ISM)
         #That's all!
 
@@ -84,23 +86,11 @@ class ConvergenceObject(object):
             for key in range(0,len(self.__names)):
                 curr_result = computeData(key,zone)
                 self.__convResults[key][self.n_iterations][zone][0] = curr_result
-                if self.__criteria != 'Previous': #Neither mean or variance are used for this criterion, so why should I add another loop?
-                    if self.n_iterations > self.__start_iteration:
-                        mean_until_now = (self.n_iterations-1)/self.n_iterations * \
-                                         self.__convResults[key][self.n_iterations-1][zone][1] + \
-                                         self.__convResults[key][self.n_iterations][zone][0] /self.n_iterations
-                        self.__convResults[key][self.n_iterations][zone][1] = mean_until_now
-
-                        suma = 0
-                        for ii in range(0,self.n_iterations):
-                            suma += ( curr_result - mean_until_now ) * ( curr_result - mean_until_now )
-                        variance_until_now = suma / (self.n_iterations-1.0)
-                        self.__convResults[key][self.n_iterations][zone][2] = variance_until_now
-                    elif self.n_iterations == self.__start_iteration:
-                        self.__convResults[key][self.n_iterations][zone][1] = curr_result
-                        self.__convResults[key][self.n_iterations][zone][2] = np.infty
-                    #else do nothing. No point in computing means and variances, they will be kept as NaN.
-
+                self.__convResults[key][self.n_iterations][zone][1] = np.nanmean(self.__convResults[key,:,zone,0])
+                self.__convResults[key][self.n_iterations][zone][2] = np.nanvar(self.__convResults[key, :, zone, 0])
+                self.__convResults[key][self.n_iterations][zone][3] = np.nanmedian(self.__convResults[key, :, zone, 0])
+                self.__convResults[key][self.n_iterations][zone][4] = abs( np.nanpercentile(self.__convResults[key, :, zone, 0],84)
+                                                                           - np.nanpercentile(self.__convResults[key, :, zone, 0],16) )
 
         #Check convergence
         has_converged = None
@@ -111,7 +101,7 @@ class ConvergenceObject(object):
         else:
             abort = False  # Changes to True when next lines find a zone for a key that has not converged yet
                            # As long as there is ONLY ONE zone, code has not converged, so stop the loops as soon as you find that zone
-            if self.__criteria == 'Previous' or self.__criteria == 'All':
+            if self.__criteria == 'Previous':
                 for zone in range(0,self.__n_zones):
                     for key in range(0,len(self.__names)):
                         difference = abs(self.__convResults[key][self.n_iterations][zone][0] - self.__convResults[key][self.n_iterations-1][zone][0])
@@ -121,26 +111,27 @@ class ConvergenceObject(object):
                             break #break key loop
                     if abort: break #break zone loop
 
-            if (self.__criteria == 'Variance' or self.__criteria == 'All') and not abort:
+            elif self.__criteria == 'Variance':
                 for zone in range(0,self.__n_zones):
                     for key in range(0,len(self.__names)):
                         mean = self.__convResults[key][self.n_iterations][zone][1]
                         variance = self.__convResults[key][self.n_iterations][zone][2]
-                        rel_error_squared = variance/(mean*mean)
-                        if not (rel_error_squared < self.__tolerances[key]*self.__tolerances[key]):
-                            abort = True
-                            break
-                    if abort: break
-            if (self.__criteria == 'Statistic' or self.__criteria == 'All') and not abort:
-                for zone in range(0,self.__n_zones):
-                    for key in range(0,len(self.__names)):
-                        mean = self.__convResults[key][self.n_iterations][zone][1]
-                        variance = self.__convResults[key][self.n_iterations][zone][2]
-                        delta_mean = np.sqrt(variance/self.n_iterations)
+                        delta_mean = np.sqrt(variance/(self.n_iterations-1))
                         if not (delta_mean < self.__tolerances[key]*mean):
                             abort = True
                             break
                     if abort: break
+            elif self.__criteria == 'Median':
+                for zone in range(0,self.__n_zones):
+                    for key in range(0,len(self.__names)):
+                        median = self.__convResults[key][self.n_iterations][zone][3]
+                        delta_median = 0.5*self.__convResults[key][self.n_iterations][zone][4] /np.sqrt(self.n_iterations-1)
+                        if not (delta_median < self.__tolerances[key]*median):
+                            abort = True
+                            break
+                    if abort: break
+            else:
+                print("Warning: Convergence criterion not recognized! I will iterate until "+str(self.__max_iterations)+" have been done.")
             #Veredict
             if abort:
                 has_converged = False
@@ -160,52 +151,12 @@ class ConvergenceObject(object):
             print("-Increase the number of photon packets.")
             print("-Bias the probability distribution in those wavelength ranges you have more noise.")
             print("-Do more iterations to converge due to central limit theorem.")
-            print("-Check relative errors of 'Average_*.sed', or run utils/output.py if you haven't to generate these files.")
+            print("-Check statistics running post_process/averages.py .")
             has_converged = True
 
         return has_converged
 
     # TESTING
-    def __diagnosticsInText(self,filename):
-        output = open(filename, 'w')
-        output.write(
-            "# I stopped after " + str(self.n_iterations - 1) + " of " + str(self.__max_iterations) + " iterations.\n")
-        output.write("# Convergence criteria is " + self.__criteria + "\n")
-        output.write("# Number of zones : " + str(self.__n_zones) + "\n")
-        for key in range(0, len(self.__names)):
-            output.write("###\n")
-            output.write("# Condition " + str(key) + " name: " + self.__names[key] + "\n")
-            output.write("#    Wavelengths : " + str(self.__wlRanges[key]) + " nm\n")
-            output.write("#    Tolerance   : " + str(self.__tolerances[key]) + "\n")
-        for ii in range(0, self.n_iterations):
-            output.write("##########################################\n")
-            output.write("ITERATION " + str(ii) + "\n")
-            output.write("##########################################\n")
-            for key in range(0, len(self.__names)):
-                output.write("# " + self.__names[key] + ":\n")
-                output.write("Convergence data : " + str(self.__convResults[key, ii, :, 0]) + "\n")
-                output.write("Means : " + str(self.__convResults[key, ii, :, 1]) + "\n")
-                output.write("Variances : " + str(self.__convResults[key, ii, :, 2]) + "\n")
-                if self.__criteria == 'Previous' or self.__criteria == 'All':
-                    output.write("'Previous' obtained tolerance : ")
-                    if ii > self.__start_iteration:
-                        result = 2.0 * abs(self.__convResults[key, ii, :, 0] - self.__convResults[key, ii - 1, :, 0]) \
-                                 / (self.__convResults[key, ii, :, 0] + self.__convResults[key, ii - 1, :, 0])
-                        output.write(str(result) + "\n")
-                    else:
-                        output.write("[ ")
-                        for z in range(0, self.__n_zones): output.write("NaN, ")
-                        output.write("]")
-                    output.write("\n")
-
-                if self.__criteria == 'Variance' or self.__criteria == 'Statistic' or self.__criteria == 'All':
-                    output.write("'Variance' obtained tolerance : ")
-                    results = np.sqrt(self.__convResults[key, ii, :, 2]) / self.__convResults[key, ii, :, 1]
-                    output.write(str(results) + "\n")
-
-        output.write("##########################################\n")
-        output.write("That's all!")
-        output.close()
 
     def __diagnosticsInTable(self,filename):
         output = open(filename, 'w')
@@ -219,25 +170,25 @@ class ConvergenceObject(object):
 
             for key in range(0, len(self.__names)):
                 output.write("## " + self.__names[key] + " ## \n")
-
-                output.write("convergence data: ")
-                for ii in range(self.n_iterations,0,-1):
-                    output.write(str(self.__convResults[key, ii, z, 0])+" ")
-
-                if self.__criteria != 'Previous':
-                    output.write("means: ")
+                for type_of_data in range(0,5):
+                    if type_of_data == 0:
+                        output.write("convergence data: ")
+                    elif type_of_data == 1:
+                        output.write("means: ")
+                    elif type_of_data == 2:
+                        output.write("variances: ")
+                    elif type_of_data == 3:
+                        output.write("medians: ")
+                    elif type_of_data == 4:
+                        output.write("x84-x16 percentile error: ")
                     for ii in range(self.n_iterations, 0, -1):
-                        output.write(str(self.__convResults[key, ii, z, 1]) + " ")
-
-                    output.write("variances: ")
-                    for ii in range(self.n_iterations, 0, -1):
-                        output.write(str(self.__convResults[key, ii, z, 2]) + " ")
+                        output.write(str(self.__convResults[key, ii, z, type_of_data]) + " ")
+                    output.write("\n")
 
         output.write("##########################################\n")
         output.write("That's all!")
         output.close()
 
     def showDiagnostics(self,filename='convergenceDiagnostics.dat'):
-        #self.__diagnosticsInText(filename) #If you want more text
         self.__diagnosticsInTable(filename) #If you want a table
 
