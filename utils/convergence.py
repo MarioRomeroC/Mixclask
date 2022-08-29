@@ -165,7 +165,7 @@ class ConvergenceObject(object):
 
             output.write("iteration: ")
             for ii in range(self.n_iterations,0,-1):
-                output.write(str(ii)+" ")
+                output.write(str(ii-1)+" ")
             output.write("\n")
 
             for key in range(0, len(self.__names)):
@@ -181,8 +181,9 @@ class ConvergenceObject(object):
                         output.write("medians: ")
                     elif type_of_data == 4:
                         output.write("x84-x16 percentile error: ")
-                    for ii in range(self.n_iterations, 0, -1):
-                        output.write(str(self.__convResults[key, ii, z, type_of_data]) + " ")
+                    for ii in range(self.n_iterations-1, -1, -1):
+                            output.write(str(self.__convResults[key, ii, z, type_of_data]) + " ")
+
                     output.write("\n")
 
         output.write("##########################################\n")
