@@ -160,6 +160,8 @@ class CloudyObject(converter.CloudyToSkirt):
                                 #Although this will be expanded as future work.
         #Cosmic rays
         self._use_cosmic_rays_background = True #If false and cloudy encounters molecular gas, it may crash
+        #CMB
+        self._use_CMB = True #Added for stability reasons. It will not propagate to Skirt, so you will not see the CMB in the output!
         
         '''
         Known bug: If you give a table with too many significant digits to cloudy,
@@ -365,6 +367,10 @@ class CloudyObject(converter.CloudyToSkirt):
                 line = line.replace('# ', '')
                 outfile.write(line)
                 break
+        
+        if self._use_CMB:
+            outfile.write("CMB \n")
+        
         sedfile.close()
     
     def __writeGeometry(self,file,zone):
