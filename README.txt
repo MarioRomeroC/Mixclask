@@ -136,10 +136,6 @@ Then, you have options related with convergence:
 >            'wavelengthRange':(10.0,90.0), #nm #Wavelength (value/range) to look convergence
 >            'tolerance': 0.10 #~Relative error you desire
 >        },
->        'DustEmissionRange':{
->            'wavelengthRange': (100e3,300e3), #nm #Wavelength (value/range) to look convergence
->            'tolerance': 0.10 #~Relative error you desire
->        },
 >    },
 There, you have one fixed key called 'Criteria', and then several keys telling what ranges do you want to look.
 By convengence, Mixclask understands that the mean intensity should not vary between current and previous iterations for EACH ISM REGION AND EACH KEY INSIDE 'Convergence'.
@@ -164,20 +160,19 @@ This iteration (or 'new') and prev iteration (or 'old') refer to the integral/va
 After that, you have options related with accuracy and speed
 >'AccuracyAndSpeed':{
 >        #Speed options
->        'n_threads': 2, #Number of logical cores you want to run for a SINGLE simulation in skirt
+>        'n_threads': 6, #Number of logical cores you want to run for a SINGLE simulation in skirt
 >        'n_cpus': 2, #Number of simulations to be run at once in CLOUDY
->        'photon_packets':2e7, #This number determines the number of photon launched in each skirt run.
+>        'photon_packets':1e7, #This number determines the number of photon launched in each skirt run.
 >            # One important thing to bear in mind that this mainly affects resolution. Less photons more noise in the results (but skirt runs are faster)
 >            # Below you find options related to the probability of launching photons, allowing you some control to adapt the output resolution.
 >        'PhotonProbability':{
->            'per_region':'logWavelength', # Available options:'logWavelength','Extinction','Custom'
+>            'per_region':'logWavelength', # Available options:'logWavelength','Custom'
 >                # This option modifies, inside each region, the probability distribution of which a photon of certain wavelength is launched
 >                # Available options are:
 >                # 'logWavelength': p(λ) ~ 1/λ -> Follows the Logarithmic distribution option given in Skirt
->                # 'Extinction': p(λ) ~ k(λ) -> More opaque media, more photons (better resolution)
 >                # 'Custom': p(λ) ~ f(λ) -> Given by the user below (used for ALL regions)
 >            'customDistributionFile': 'input_data/probability_distributions/YourFile.stab',
->            'wavelengthBias': 0.5 #Between 0 and 1. It controls how many photons launched per region follow above distribution.
+>            'wavelengthBias': 0.5 #Between 0 and 1. It controls how many photons launched per region follow above distributions (also 'logWavelength').
 >                # 0 makes above option without effect.
 >                # 1 makes regions to strictly follow the distribution
 >                #   (you risk having some wavelength ranges without photons, so the output will be zero there,
@@ -192,6 +187,10 @@ Explanations are quite straightforward. The only thing you need to know is that 
 > ...
 The units in 'Column 2' are required because Skirt complains otherwise, and you do not need to normalize the distribution: Skirt does it for you.
 See https://skirt.ugent.be/skirt9/class_file_wavelength_distribution.html for more details
+In any case, Skirt (and so Mixclask) launches photons as probabilities:
+> p(λ) = b*p_user + (1-b)*p_SED
+where p_user is the option you give in 'per_region' and p_SED is the SED luminosity you gave as input for per source region (stars, but also ISM regions that are done internally).
+See https://skirt.ugent.be/skirt9/class_source.html for more details. 
 
 Finally, you also have 'Technical' options. The only one you have to touch is
 > 'cloudy_path':'/path/to/your/cloudy/exe' 

@@ -44,24 +44,19 @@ Options = {
             'wavelengthRange':(10.0,90.0), #nm #Wavelength (value/range) to look convergence
             'tolerance': 0.10 #~Relative error you desire
         },
-        'DustEmissionRange':{
-            'wavelengthRange': (100e3,300e3), #nm #Wavelength (value/range) to look convergence
-            'tolerance': 0.10 #~Relative error you desire
-        },
     },
     'AccuracyAndSpeed':{
         #Speed options
-        'n_threads': 2, #Number of logical cores you want to run for a SINGLE simulation in skirt
+        'n_threads': 6, #Number of logical cores you want to run for a SINGLE simulation in skirt
         'n_cpus': 2, #Number of simulations to be run at once in CLOUDY
-        'photon_packets':2e7, #This number determines the number of photon launched in each skirt run.
+        'photon_packets':1e7, #This number determines the number of photon launched in each skirt run.
             # One important thing to bear in mind that this mainly affects resolution. Less photons more noise in the results (but skirt runs are faster)
             # Below you find options related to the probability of launching photons, allowing you some control to adapt the output resolution.
         'PhotonProbability':{
-            'per_region':'logWavelength', # Available options:'logWavelength','Extinction','Custom'
+            'per_region':'logWavelength', # Available options:'logWavelength','Custom'
                 # This option modifies, inside each region, the probability distribution of which a photon of certain wavelength is launched
                 # Available options are:
                 # 'logWavelength': p(λ) ~ 1/λ -> Follows the Logarithmic distribution option given in Skirt
-                # 'Extinction': p(λ) ~ k(λ) -> More opaque media, more photons (better resolution)
                 # 'Custom': p(λ) ~ f(λ) -> Given by the user below (used for ALL regions)
             'customDistributionFile': 'input_data/probability_distributions/YourFile.stab',
             'wavelengthBias': 0.5 #Between 0 and 1. It controls how many photons launched per region follow above distribution.

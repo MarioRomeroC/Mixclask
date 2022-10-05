@@ -1,7 +1,7 @@
 # Column 1: wavelength (nm) 
 # Column 2: probability density (erg/s) 
 # luminosity units are required for skirt to work. Probability density has no units
-# with a wavelength bias of 0.5, you should expect than 10% of the photons have a wavelength between 10 to 90 nm.
+# with a wavelength bias of 0.5, you should expect than ~50% of the photons have a wavelength between 10 to 90 nm.
 10.0 833.0
 90.0 833.0
 91.0 1.0
