@@ -11,10 +11,10 @@ Mario Romero        August 2022
 from glob import glob
 import os
 import numpy as np
-np.seterr(all='raise')
+np.seterr(all='warn')
 
 #Set your locations
-inputs_path = '../Results/BBresults/'
+inputs_path = '../YourResultsFolder/'
 outputs_folder = 'Statistics' #It will be created in inputs_path
 outputs_key = 'Stat'
 #Set starting and ending iteration

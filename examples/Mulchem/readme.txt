@@ -1,28 +1,54 @@
-Here you will find the files to reproduce the ISRF of the Mulchem chemical evolution model (Molla et. al. 2022) shown in Romero et al. (in prep), section 4.
+Here you will find the files to reproduce the ISRF of the Mulchem chemical evolution model (Molla et. al. 2022) shown in Romero et al. (in prep), section 3.
 
--Mulchem_positions.txt contains the positions where the mean intensity output will be saved. This goes to the 'MeanIntensity_Positions' folder in 'input_data'
+-Mulchem_positions.txt contains the positions where the mean intensity output will be saved.
 -Mulchem_gas.dat contains the initial conditions of the gas. The files Mixclask will read the input spectra are in the first column, from the folder than contains 'main.py'.
 -Mulchem_stars.dat contains the geometry and location of the stellar sources. Mixclask will look if the file in the first column exists in 'star_sources'.
--Inside the 'stars' folder, you will find the stellar spectra of all regions in 'Mulchem_stars.dat'. The contents of this folder should me copied to 'star_sources' folder in 'input_data'.
+-Inside the 'stars' folder, you will find the stellar spectra of all regions in 'Mulchem_stars.dat'.
+You may move the contents to 'input_data' folder, but that's not longer necessary.
 
 To run this test without minimal input for the user, enter in 'Main.py' and write in these lines:
-> # Where are the gas and star parameters starting from this folder?
-> gas_params  = 'input_data/params/Mulchem_gas.dat'
-> star_params = 'input_data/params/Mulchem_stars.dat'
-> meanIntensity_positions = 'input_data/MeanIntensity_Positions/Mulchem_positions.txt'
-Assuming that you have placed these files as told above.
+>'FileParameters':{
+>        'stars':{
+>            # Where is the star parameter file?
+>            'file': 'examples/Mulchem/Mulchem_stars.dat',
+>            # And the folder containing the SED of each stellar region?
+>           'folder': 'examples/Mulchem/stars'
+>        },
+>        # Where is the ISM parameter file?
+>        'ISM': 'examples/Mulchem/Mulchem_gas.dat',
+>        # At what positions (x,y,z) do you want some outputs?
+>        'positions': 'examples/Mulchem/Mulchem_positions.txt'
+>    },
+Assuming that you have not moved these files.
 
-Finally, go to these lines:
-> # Some technical parameters
-> cloudy_path = '/path/to/your/cloudy/exe'
-> show_cloudy_params = False
-> n_iterations = 15
-> n_threads = 2
-> tolerance = [0.67,0.10] 
+Next, go to this dictionary and write:
+>'PhotonProbability':{
+>    'per_region':'Custom', # Available options:'logWavelength','Custom'
+>        # This option modifies, inside each region, the probability distribution of which a photon of certain wavelength is launched
+>        # Available options are:
+>        # 'logWavelength': p(λ) ~ 1/λ -> Follows the Logarithmic distribution option given in Skirt
+>        # 'Custom': p(λ) ~ f(λ) -> Given by the user below (used for ALL regions)
+>    'customDistributionFile': 'input_data/probability_distributions/EUV_50percent.stab',
+>    'wavelengthBias': 0.5 #Between 0 and 1. It controls how many photons launched per region follow above distribution.
+>        # 0 makes above option without effect.
+>        # 1 makes regions to strictly follow the distribution
+>        #   (you risk having some wavelength ranges without photons, so the output will be zero there,
+>        #       because the probability was too low to even launch one photon)
+>}
+I am changing 'per_region' and 'customDistributionFile'. Do not worry about the file, because it is inside 'input_data/probability_distributions'.
+
+Finally, go to this line:
+> 'cloudy_path':'/path/to/your/cloudy/exe',
 In 'cloudy_path' you must specify where 'cloudy.exe' is found in your computer. 
-If you installed cloudy normally, it should be in 'cXX.XX/source/cloudy.exe'. Where 'XX.XX' is the version of cloudy (e.g.: if version is 17.01, write c17.01).
+If you installed cloudy normally, it should be in 'cXX.XX/source/cloudy.exe'. Where 'XX.XX' is the version of cloudy (e.g.: if version is 17.03, write c17.03).
 PLEASE NOTE that this isn't the full path, you must put before the location of 'cXX.XX/source/cloudy.exe' (i.e.: the folder where you have installed cloudy), and the string must start with '/'.
-Feel free to change the n_iterations (=maximum number of iteration if convergence is not reached earlier) and n_threads (~number of cpus you want to use) if you want. 
+
+Feel free to change other parameters such as:
+> 'n_iterations' (maximum number of iterations if convergence is not reached earlier)
+> 'n_threads' (number of logical cores you want to use in Skirt)
+> 'n_cpus' (Number of simulations to be run at once in Cloudy)
+> 'photon_packets' (number of photon launched in each skirt run)
+These affect mainly computation speed. 
 
 And that's all, run in terminal:
 > python3 Main.py
@@ -30,4 +56,14 @@ And that's all, run in terminal:
 If you want the text that Mixclask says during runtime written in a file instead, use
 > python3 -u Main.py > file.log &
 
-This test can take some hours to complete, about 7-10h
+This test can take some hours to complete, about 7-10h.
+
+---
+
+Once it is finished, I suggest to create a folder named 'MulchemResults' (for instance, you may use other name) and move all folders called 'iteration' and any '.sed' files that are in the root folder.
+If you want the average of all iterations, go to 'post_processing/averages.py'. Inside the file, change this line:
+> inputs_path = '../MulchemResults/'
+And then run
+> python3 averages.py
+Inside 'MulchemResults' folder, there should be another one called 'Statistics' with the average results.
+
