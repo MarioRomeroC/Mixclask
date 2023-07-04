@@ -1,0 +1,12 @@
+If this code is used, you should cite this paper in your work:
+-Predicting interstellar radiation fields from chemical evolution models
+Published in MNRAS, Volume 521, Issue 2, pp.1727-1740.
+You can find the ADS link here:
+https://ui.adsabs.harvard.edu/abs/2023MNRAS.521.1727R/abstract
+(For an easy referencing, you may use the 'export citation' link there to get the citation for bibtex)
+
+As this code relies on both Skirt and Cloudy, both codes should be referenced as well.
+-For Skirt, it was used its version 9, described in Camps & Baes (2020):
+https://ui.adsabs.harvard.edu/abs/2020A%26C....3100381C/abstract
+-For Cloudy, it was used its version 17.03, described in Ferland et al. (2017):
+https://ui.adsabs.harvard.edu/abs/2017RMxAA..53..385F/abstract

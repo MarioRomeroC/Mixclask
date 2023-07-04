@@ -1,6 +1,14 @@
 # Mixclask
 Mixing cloudy and skirt
 
+This is the current version of Mixclask, first used in:
+-Predicting interstellar radiation fields from chemical evolution models.
+By M. Romero, P. Corcho-Caballero, I. Millán-Irigoyen, M. Mollá and Y. Ascasibar.
+Published in MNRAS, Volume 521, Issue 2, pp.1727-1740.
+https://ui.adsabs.harvard.edu/abs/2023MNRAS.521.1727R/abstract
+You may also find this code listed in the Astrophysics Source Code Library (ASCL):
+https://ascl.net/2306.029
+
 This code combines cloudy (https://gitlab.nublado.org/cloudy/cloudy/-/wikis/home) and skirt (https://skirt.ugent.be/root/_landing.html) to predict spectra and gas properties in astrophysical contexts (galaxies, HII regions...). This code assumes that you have installed both codes following their instructions.
 You must also have python3 installed with flatten-dict module (if not, write 'pip3 install flatten-dict' in terminal)
 

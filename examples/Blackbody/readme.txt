@@ -1,4 +1,4 @@
-Here you will find the files of the Blackbody test done in Romero et al. (in prep), section 2.3.
+Here you will find the files of the Blackbody test done in Romero et al. (2023), section 2.3.
 
 -BlackBody_positions.txt contains the positions where the mean intensity output will be saved.
 -BlackBody_gas.dat contains the initial conditions of the gas. The files Mixclask will read the input spectra are in the first column, from the folder than contains 'main.py'.

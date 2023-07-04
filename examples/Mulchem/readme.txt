@@ -1,4 +1,4 @@
-Here you will find the files to reproduce the ISRF of the Mulchem chemical evolution model (Molla et. al. 2022) shown in Romero et al. (in prep), section 3.
+Here you will find the files to reproduce the ISRF of the Mulchem chemical evolution model (Molla et. al. 2022) shown in Romero et al. (2023), section 3.
 
 -Mulchem_positions.txt contains the positions where the mean intensity output will be saved.
 -Mulchem_gas.dat contains the initial conditions of the gas. The files Mixclask will read the input spectra are in the first column, from the folder than contains 'main.py'.
